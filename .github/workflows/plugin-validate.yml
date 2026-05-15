@@ -1,0 +1,65 @@
+# plugin-validate — CI shim that runs the local validation scripts.
+#
+# DESIGN: Local script is the source of truth (BL-025-k F1). This
+# workflow is a thin wrapper: install Node, install a pinned version
+# of the claude CLI, then invoke the same three scripts a developer
+# runs locally. Any logic change belongs in scripts/, not here.
+#
+# PIN — @anthropic-ai/claude-code@2.1.138
+#   `claude plugin validate` semantics can shift between 2.1.x
+#   versions (BL-025-k synthesis pre-mortem #4). Pin exactly; bump
+#   deliberately, observe CI, re-pin. Manual bump cadence — no
+#   dependabot for this until BL-025-l locks the marketplace gate.
+#
+# v0.0.1-dormant — workflow waits for first push to a fork. No PR
+# traffic yet; this exists so the first non-author adopter who opens
+# a PR gets immediate signal on whether their plugin tree is valid.
+#
+# Triggers: push + pull_request (any branch / any base).
+
+name: plugin-validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node (for npm install of claude CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pinned claude CLI
+        # @2.1.138 is the version against which BL-025-k was validated
+        # locally. Bumping requires a confirming run of all three
+        # scripts; do not bump without re-running scripts/validate-plugin.sh
+        # and updating this comment + version pin in lockstep.
+        run: npm install -g "@anthropic-ai/claude-code@2.1.138"
+
+      - name: Show claude CLI version
+        run: claude --version
+
+      - name: Ensure jq is present
+        # ubuntu-latest ships jq; this is defense-in-depth so a future
+        # runner image change does not silently break the validator.
+        run: command -v jq && jq --version
+
+      - name: Run structural validator (with `claude plugin validate` final stage)
+        # NO --no-claude: CI's contract is that the CLI is installed and
+        # exercises the official validator. --no-claude is a local-dev
+        # opt-out only.
+        run: bash scripts/validate-plugin.sh
+
+      - name: Run plugin-validate test harness (positive + 6 fixtures)
+        run: bash scripts/tests/plugin-validate-test.sh
+
+      - name: Run oj-helper-hook test harness
+        run: bash scripts/tests/oj-helper-hook-test.sh
