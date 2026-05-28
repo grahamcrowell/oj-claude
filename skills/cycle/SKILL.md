@@ -2,22 +2,39 @@
 description: Execute the autonomous backlog cycle — triage, delegate, review, test, commit, retrospect
 ---
 
-Execute against the backlog leveraging the team of expert agents.
+Execute against the backlog leveraging the team of expert agents. A single `/cycle` invocation processes MULTIPLE backlog items: pick the highest-priority unblocked item, run the full per-item protocol (triage → engage → execute → test → commit → update backlog → brief retro), then re-enter the loop on the next highest-priority unblocked item. Each item gets its own atomic commit(s) and its own clean-tree gate before the loop advances. Stop when a budget/safety gate trips (see below).
 
 ## Backlog 
 
 Read `.claude/BACKLOG.md` as the backlog source.
 
+## Loop & Stop Conditions
+
+`/cycle` LOOPS over backlog items within a single invocation. `/run-task` does NOT — it runs exactly one item per invocation. Do not conflate them.
+
+**Loop entry**: Step 2 selects the highest-priority unblocked item to start an iteration.
+**Per-item boundary**: Steps 3–9 run for the selected item. The Step 7a clean-tree gate MUST pass before the loop advances to the next item. A dirty working tree blocks loop advancement.
+**Loop re-entry**: After Step 9's brief per-item retro, return to Step 2 to select the next highest-priority unblocked item.
+
+**Stop the loop and surface control to the user when ANY of these trip** (then proceed to per-invocation Steps 10 and 11):
+
+1. **Budget**: token/context budget is running low (e.g., approaching the model's context window or the session's effective working budget).
+2. **Complexity gate**: the next selected item triages to **Complex** tier (per Step 3's execution-model classification). Complex-tier work warrants a fresh invocation with full attention, not a tail-end loop iteration.
+3. **One-way door**: the next iteration would require an irreversible action — `git push`, package publish, destructive migration, resource deletion, production deploy. Surface to the user for explicit approval; do not perform the action inside the loop.
+4. **User-only decision**: a decision only the user can make is reached (scope ambiguity, product trade-off, sensitive trust call).
+
+On any trip, do NOT silently skip the item — stop the loop, run Steps 10 and 11, and report which gate tripped, the item it tripped on, and what the user needs to decide.
+
 ## Cycle Protocol
 
-### Step 1 — Read Context
-Read `.claude/CLAUDE.md` to understand project constraints.
+### Step 1 — Read Context (once per invocation)
+Read `.claude/CLAUDE.md` to understand project constraints. Run this ONCE at the start of the invocation, not per loop iteration.
 
-### Step 2 — Load Backlog
+### Step 2 — Load Backlog (loop entry)
 
-Read `.claude/BACKLOG.md`. If empty, prompt the user for input.
+Read `.claude/BACKLOG.md`. If empty, prompt the user for input and exit.
 
-Select the highest-priority unblocked item.
+Select the highest-priority unblocked item to start this iteration. If no unblocked items remain, stop the loop, proceed to Steps 10 and 11, and report "backlog drained".
 
 ### Step 3 — Triage
 Perform two-dimensional triage (see CLAUDE.md § Two-Dimensional Triage):
@@ -50,6 +67,8 @@ Before spawning any agents, declare the engagement plan:
    - **Moderate**: Plan Phase 1 (stakeholder analysis agents spawned in parallel), Phase 2 (lead implementation agent), Phase 3 (adversarial reviewer). Assign a profile to each phase.
    - **Complex**: Plan team formation — coordinator + stakeholder agents via `TeamCreate`. Identify the deputy coordinator role and assign stakeholder agents to parallel workstreams.
 3. **State the plan**: Name each stakeholder perspective, their agent assignment (or "inline" for Simple), and expected deliverable before proceeding to execution.
+
+> Steps 5–9 below execute for the SINGLE item selected in Step 2. They form one loop iteration. After Step 9 completes for the current item, return to Step 2 to select the next item (subject to the Loop & Stop Conditions above).
 
 ### Step 5 — Execute
 Execute according to the execution model determined in Step 3 (see CLAUDE.md § Execution Models):
@@ -86,41 +105,48 @@ All three phases are mandatory for Moderate tier.
 Validate with tests. Ensure a balanced test pyramid (unit > integration > e2e). Run existing tests to confirm no regressions.
 
 ### Step 7 — Commit
-Create atomic commits with clear messages. Do NOT include "Co-Authored-By" lines or other AI attribution in commit messages.
+Create atomic commits with clear messages scoped to THIS item. Do NOT include "Co-Authored-By" lines or other AI attribution in commit messages. Each loop iteration produces its own commit(s); do not batch multiple items into one commit.
 
-**Commit Verification Gate** (7a): After committing, run `git status` to confirm the working tree is clean — no uncommitted tracked changes or untracked files that should be committed. If uncommitted changes remain, stage and commit them before proceeding. Do not advance to Step 8 until the working tree is clean.
+**Commit Verification Gate** (7a): After committing, run `git status` to confirm the working tree is clean — no uncommitted tracked changes or untracked files that should be committed. If uncommitted changes remain, stage and commit them before proceeding. Do not advance to Step 8, and do not advance the LOOP to the next item, until the working tree is clean. A dirty tree at this gate is a hard block on loop advancement.
 
 ### Step 8 — Update Backlog
-- **BACKLOG.md**: Mark completed items, add any discovered work, update `.claude/BACKLOG.md`.
+- **BACKLOG.md**: Mark THIS item complete, add any discovered work, update `.claude/BACKLOG.md`. Commit this update as part of the per-item commit boundary (Step 7) — the loop must not advance with an unstaged backlog edit.
 
-### Step 9 — Retrospective
-Brief retrospective on what worked and what to improve. For Complex tier items, write to `.claude/archive/retros/`.
+### Step 9 — Per-Item Retrospective
+Brief retrospective on what worked and what to improve for THIS item. Keep it short (a few bullets) — full retros happen per-invocation if needed, and Complex-tier items trigger a stop (see Loop & Stop Conditions) so they get their own invocation. For Complex tier items (if one slipped through), write to `.claude/archive/retros/`.
 
-**Dev Mode Feedback** (9a): Run `oj-helper feedback-path` in bash. If the output is empty (dev mode is off), skip feedback. Otherwise, the output is the file path to write. Write the feedback file to that path with this format:
+> After Step 9 for the current item: re-enter the loop at Step 2 on the next highest-priority unblocked item, UNLESS a budget/safety gate (see Loop & Stop Conditions) trips. If a gate trips, skip directly to Step 9a, then Step 10, then Step 11 (which now run ONCE per invocation, not per item).
+
+### Step 9a — Dev Mode Feedback (per invocation, after the loop ends)
+After the loop has stopped (backlog drained or a gate tripped), run `oj-helper feedback-path` in bash. If the output is empty (dev mode is off), skip feedback. Otherwise, the output is the file path to write. Write ONE feedback file per invocation summarizing the full run — not one per item, to avoid file spam. Format:
 ```
 ---
 date: YYYY-MM-DD
-item: KEY-NNN or BACK-XXX
-tier: Simple|Moderate|Complex
+items: [KEY-NNN, KEY-NNN, ...]  # or [BACK-XXX, BACK-XXX, ...]
+tiers: [Simple|Moderate|Complex, ...]
+stop_reason: budget-drained | complex-next | one-way-door | user-decision | backlog-drained
 ---
 ### What Worked
-- [bullet points]
+- [bullet points across the run]
 ### What to Improve
-- [bullet points]
+- [bullet points across the run]
 ### OpenJunto System Suggestions
 - [specific suggestions for improving OpenJunto itself — agent profiles, cycle protocol, CLAUDE.md instructions, etc.]
 ```
-Fill in the actual date, backlog item ID (BACKLOG.md), tier, and retrospective content from this cycle. Each cycle produces exactly one new file.
+Fill in the actual date, the list of backlog item IDs processed during this invocation, the list of tiers in iteration order, the stop reason, and a run-level retrospective. Each `/cycle` invocation produces exactly one new feedback file.
 
-### Step 10 — Artifacts
-Store any design documents, ADRs, or analysis artifacts in `.claude/artifacts/`.
+### Step 10 — Artifacts (per invocation)
+Store any design documents, ADRs, or analysis artifacts produced during the run in `.claude/artifacts/`.
 
-### Step 11 — Notify
-Tell the user the cycle is complete, summarize what was done, and suggest `/clear` before the next cycle if context is getting large.
+### Step 11 — Notify (per invocation)
+Tell the user the cycle invocation is complete. Summarize: (a) how many items were processed and their IDs, (b) which stop condition tripped (budget / complex-next / one-way-door / user-decision / backlog-drained), (c) for `complex-next` / `one-way-door` / `user-decision` — the item it tripped on and what decision the user needs to make. Suggest `/clear` before the next invocation if context is getting large.
 
 ## Constraints
 
-- Scope each cycle to ONE backlog item to keep changes bounded and reviewable.
+- A single `/cycle` invocation iterates the per-item protocol over MULTIPLE backlog items, one item at a time, with a per-item commit boundary. (`/run-task` is the single-item form — use it when you want exactly one item.)
+- Each loop iteration is scoped to ONE backlog item: triage, execute, test, commit, update backlog, brief retro — then re-enter the loop on the next item.
+- Per-item atomic commits: each item gets its own commit(s); do not batch multiple items into one commit. The Step 7a clean-tree gate MUST pass before the loop advances.
+- Stop the loop at any budget/safety gate: token/context budget low, next item triages Complex, irreversible / one-way-door action required, or a user-only decision is reached. See "Loop & Stop Conditions" above for the full enumeration.
 - Prefer small, atomic commits over large monolithic ones.
-- Do not proceed past review if peer review identifies blocking issues.
-- If blocked or uncertain, stop and ask the user rather than guessing.
+- Do not proceed past review if peer review identifies blocking issues — stop the loop and surface.
+- If blocked or uncertain, stop the loop and ask the user rather than guessing.
