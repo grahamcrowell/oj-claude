@@ -169,7 +169,7 @@ Create atomic commits with clear, focused messages.
 
 > **No "Co-Authored-By" lines or AI attribution.** Omit Claude ads from commit messages.
 
-**Verification gate**: After committing, run `git status`. If uncommitted changes remain (modified tracked files or untracked files created during the cycle), stage and commit them with a descriptive message. Perform only **one** verification pass.
+**Verification gate**: After committing, run `git status`. If uncommitted changes remain (modified tracked files or untracked files created during this run-task invocation), stage and commit them with a descriptive message. Perform only **one** verification pass.
 
 #### Update Backlog
 
@@ -208,21 +208,21 @@ tier: Simple|Moderate|Complex
 - [specific suggestions for improving OpenJunto itself]
 ```
 
-Fill in the actual date, the ticket key (issue tracker mode) or backlog ID (BACKLOG.md mode), the tier, and the retrospective content. Each cycle produces exactly one new file.
+Fill in the actual date, the ticket key (issue tracker mode) or backlog ID (BACKLOG.md mode), the tier, and the retrospective content. Each run-task invocation produces exactly one new file.
 
 #### Artifacts
 
-Store design documents, ADRs, or analysis artifacts produced during the cycle in `.claude/artifacts/`.
+Store design documents, ADRs, or analysis artifacts produced during this run-task invocation in `.claude/artifacts/`.
 
 #### Notify
 
-Tell the user the cycle is complete, summarize what was done, and suggest `/clear` before the next cycle if context has grown large.
+Tell the user the run-task is complete, summarize what was done, and suggest `/clear` before the next run-task invocation if context has grown large.
 
 ## Constraints
 
-- **One item per cycle** — scope to exactly ONE backlog item to keep changes bounded and reviewable
+- **One item per invocation — run-task does not loop** — scope to exactly ONE backlog item to keep changes bounded and reviewable
 - **Atomic commits** — prefer small, focused commits over large monolithic ones
 - **Don't proceed past review** if peer review identifies blocking issues — iterate or escalate
 - **Stop and ask** if blocked or uncertain — never guess
-- **Issue tracker failures are non-blocking** — if the issue tracker is unreachable mid-cycle, complete the work and note the ticket key and status update needed for manual reconciliation
+- **Issue tracker failures are non-blocking** — if the issue tracker is unreachable mid-run, complete the work and note the ticket key and status update needed for manual reconciliation
 - **Delegation boundary** — the manager coordinates and synthesizes but does not implement; all code, documentation (except `.claude/BACKLOG.md`), and expert deliverables come from sub-agents
