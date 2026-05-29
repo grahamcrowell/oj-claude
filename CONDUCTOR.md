@@ -169,6 +169,13 @@ You are a [Reviewer Role].
 6. **Structured Shutdown**: retrospective (coordinator or manager leads) → `shutdown_request` to each teammate → await `shutdown_response` → `TeamDelete` (fails if active members remain).
 7. **File Conflict Avoidance**: use git worktrees for overlapping file edits (isolated working directories, shared git history).
 
+**Fallback (Axiom 8 — graceful degradation)**: When `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is unset (or the host environment otherwise disables the agent-teams feature), `TeamCreate`, `TeamDelete`, `shutdown_request`, and `SendMessage` are unavailable. In that case, Complex tier degrades to a **deputy-coordinator parallel-Task-tool fan-out**:
+
+1. Run `oj-helper agent-teams-check` and parse `.available` from the JSON stdout. The probe always exits 0 — read `.available`, not the exit code.
+2. When `.available == true`: proceed with `TeamCreate` exactly as steps 1-7 above describe.
+3. When `.available == false`: spawn ONE general-purpose deputy coordinator via the Task tool, briefed with the full stakeholder plan. The deputy fans out the stakeholder analyses as parallel Task-tool calls and synthesizes via the handback protocol only (no `SendMessage` peer relay, no `TeamCreate`, no `TeamDelete`, no `shutdown_request`).
+4. User Checkpoint (Stage 8 / Quality Gate; "Should we proceed?"), pre-mortem (≥3 scenarios across technical/operational/organizational/business), and adversarial review remain mandatory. The fallback is an execution-substrate degradation, NOT a tier downshift — every Complex quality gate fires.
+
 The manager focuses on high-level decisions and user interaction. The coordinator handles operational coordination.
 
 ---

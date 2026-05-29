@@ -95,11 +95,23 @@ All three phases are mandatory for Moderate tier.
 
 **Complex — Parallel Team (Swarm)**:
 
+After tier classification confirms Complex, run `oj-helper agent-teams-check` and parse `.available` from the JSON stdout. The probe always exits 0 (Axiom 8 — never block on the probe itself); branch on the JSON value, not the exit code.
+
+*When `.available == true` — TeamCreate path:*
+
 1. **Team Formation**: Create the team via `TeamCreate`. Spawn a deputy coordinator and stakeholder agents as teammates.
 2. **Deputy Coordinator**: A general-purpose agent briefed with the full stakeholder plan. Manages inter-stakeholder communication, creates tasks, synthesizes raw output, and relays concise updates to the manager.
 3. **Parallel Execution**: Stakeholder agents work concurrently, coordinated by the deputy.
 4. **Synthesis**: Coordinator synthesizes → manager reviews → user checkpoints as needed.
 5. **Teardown**: Retrospective, then `TeamDelete` to clean up the team.
+
+*When `.available == false` — Convene→Consult fallback (Axiom 8):*
+
+1. **Deputy Spawn (via Task tool)**: Spawn ONE general-purpose deputy coordinator via the Task tool, briefed with the full stakeholder plan. `TeamCreate` is unavailable in this branch — do not call it.
+2. **Parallel Stakeholder Consults (via Task tool)**: The deputy fans out the stakeholder analyses as parallel Task-tool invocations. Each stakeholder returns its handback to the deputy.
+3. **Handback-only Synthesis**: The deputy synthesizes via the handback protocol only. `SendMessage` / Inform is unavailable in this branch — no peer messaging.
+4. **Quality Gates Preserved**: User Checkpoint ("Should we proceed?"), pre-mortem (≥3 scenarios), and adversarial review remain mandatory — the fallback is an execution-substrate degradation, not a tier downshift.
+5. **Teardown**: Retrospective only. Do NOT call `TeamDelete` or `shutdown_request` — those tools are unavailable in this branch.
 
 ### Step 6 — Test
 Validate with tests. Ensure a balanced test pyramid (unit > integration > e2e). Run existing tests to confirm no regressions.

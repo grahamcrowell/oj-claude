@@ -133,11 +133,23 @@ All three phases are mandatory.
 
 #### Execute — Complex (Parallel Team / Swarm)
 
+After tier classification confirms Complex, run `oj-helper agent-teams-check` and parse `.available` from the JSON stdout. The probe always exits 0 (Axiom 8 — capability report, not a precondition gate); branch on the JSON value, not the exit code.
+
+*When `.available == true` — TeamCreate path:*
+
 1. **Team Formation**: `TeamCreate` with coordinator + stakeholder agents
 2. **Deputy Coordinator**: A general-purpose agent briefed with the full stakeholder plan; manages inter-stakeholder communication, task creation, and synthesis; keeps the manager's context lean
 3. **Parallel Execution**: Stakeholders work concurrently, coordinated by the deputy
 4. **Synthesis**: Coordinator synthesizes → manager reviews → user checkpoints at decision points
 5. **Teardown**: Retrospective → `shutdown_request` to each teammate → `TeamDelete`
+
+*When `.available == false` — Convene→Consult fallback (Axiom 8):*
+
+1. **Deputy Spawn (via Task tool)**: Spawn ONE general-purpose deputy coordinator via the Task tool, briefed with the full stakeholder plan. `TeamCreate` is unavailable in this branch.
+2. **Parallel Stakeholder Consults (via Task tool)**: The deputy fans out the stakeholder analyses as parallel Task-tool invocations.
+3. **Handback-only Synthesis**: The deputy synthesizes via the handback protocol only — `SendMessage` / Inform is unavailable.
+4. **Quality Gates Preserved**: User Checkpoint, pre-mortem (≥3 scenarios), and adversarial review remain mandatory.
+5. **Teardown**: Retrospective only. Do NOT call `TeamDelete` or `shutdown_request` — those tools are unavailable in this branch.
 
 ### Phase 4 — Deliver
 
