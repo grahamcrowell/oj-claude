@@ -131,6 +131,8 @@ All three phases are mandatory.
 - **Phase 2 — Lead Implementation**: Synthesize Phase 1 findings, brief the lead expert with the synthesis, lead produces the deliverable.
 - **Phase 3 — Adversarial Review**: Spawn a reviewer with the Adversarial Review Protocol — find the single most important problem, test documented failure modes.
 
+> **Set `model` on every Task spawn per CONDUCTOR.md § Model Selection.** Function rules (terse): Phase-1 analysts → `sonnet` (`haiku` for bounded/docs-only lenses); Phase-2 Moderate lead → `sonnet` (escalate to `opus` for high-risk implementations or unresolved TENSION); Phase-3 adversarial reviewer → **always `opus`** regardless of the reviewer role's default. Per-role default fallback table is in CONDUCTOR.md § Model Selection — do not duplicate it here.
+
 #### Execute — Complex (Parallel Team / Swarm)
 
 After tier classification confirms Complex, run `oj-helper agent-teams-check` and parse `.available` from the JSON stdout. The probe always exits 0 (Axiom 8 — capability report, not a precondition gate); branch on the JSON value, not the exit code.
@@ -152,6 +154,8 @@ After tier classification confirms Complex, run `oj-helper agent-teams-check` an
 5. **Teardown**: Retrospective only. Do NOT call `TeamDelete` or `shutdown_request` — those tools are unavailable in this branch.
 
 *Runtime backstop (the probe is a hint, not a guarantee)*: `agent-teams-check` only inspects the env var; an environment where the var is set but `TeamCreate` is actually disabled at runtime (enterprise policy, future flag retirement) will steer this skill onto the team branch incorrectly. If the team branch is taken and the first `TeamCreate` call — or any agent-teams-gated tool (`TeamCreate`, `TeamDelete`, `SendMessage`, `shutdown_request`) — raises "Unknown tool" / "tool unavailable" at runtime, do NOT abort the task. Fall through to the deputy-coordinator parallel-Task-tool fan-out above (handback-only synthesis, no Inform). The runtime signal is authoritative over the probe; the User Checkpoint promised at triage MUST still fire before Phase 4.
+
+> **Set `model` on every Task spawn per CONDUCTOR.md § Model Selection.** Function rules (terse): Complex-tier lead implementer → **`opus`**; adversarial reviewer slot → **always `opus`** regardless of the reviewer role's default; deputy coordinator → `sonnet` (escalate to `opus` if it carries the synthesis weight); stakeholder analysts → `sonnet` (`haiku` for bounded/docs-only lenses); specialists on a domain trigger → `sonnet`, escalate to `opus` when their domain is the decisive risk (Security on auth/crypto, SRE on SLO-impacting change, Data Architect on destructive migration). Per-role default fallback table is in CONDUCTOR.md § Model Selection.
 
 ### Phase 4 — Deliver
 

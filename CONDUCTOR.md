@@ -311,6 +311,32 @@ Set the `model` parameter on Task tool spawns to match the task's cognitive dema
 
 When in doubt, use the more capable model (haiku < sonnet < opus).
 
+#### Function-First Selection Rules
+
+Pick the model per spawn by the spawn's **function** (what the role is doing in this engagement), with per-role defaults as a secondary anchor. The function rules below override the role-default table when they conflict — a role's default tier is the floor for routine engagements, not a ceiling on adversarial or high-risk ones.
+
+- **Adversarial reviewer slot (any role)** → **opus**. The reviewer's output is forwarded verbatim and must break the work; it is the load-bearing critique surface and should run on the strongest tier regardless of the reviewer's default.
+- **Complex-tier lead implementer** → **opus**. Complex-tier work is by definition ambiguous, cross-domain, or high-blast-radius; the lead carries the synthesis weight.
+- **Moderate-tier lead implementer** → **sonnet** by default; escalate to **opus** when the implementation is high-risk (novel design, security-sensitive, irreversible migration, or the findings ledger contains an unresolved TENSION the lead must arbitrate).
+- **Phase-1 stakeholder analysts (output compressed to FINDING / TENSION)** → **sonnet**; drop to **haiku** for bounded or lightweight lenses (e.g., docs-only review, mechanical conformance checks).
+- **Specialists engaged on a domain trigger** → **sonnet** by default; escalate to **opus** when their domain is the **decisive risk** for the engagement (e.g., Security on an auth/crypto change, SRE on an SLO-impacting change, Data Architect on a destructive migration).
+
+#### Per-Role Default Model (adjustable; reviewer-slot override always wins)
+
+These are **starting defaults** for the role when no function rule applies. Treat them as adjustable per engagement — the function rules above take precedence whenever the role appears in the reviewer slot or as a Complex-tier lead.
+
+| Default Model | Roles |
+|---------------|-------|
+| **opus** | Distinguished Engineer, Security Engineer, Site Reliability Engineer, Engineering Consultant |
+| **sonnet** | Software Engineer, Solutions Architect, DevOps Engineer, Test Engineer, Data Architect, Data Scientist, ML Engineer, Enterprise Architect, Business Analyst, Product Manager, Executive Leadership Coach |
+| **haiku** | Technical Writer (docs strategy) — escalate to **sonnet** when user-facing prose is the deliverable |
+
+Anchor example: `${CLAUDE_PLUGIN_ROOT}/reference/worked-examples.md` Example 2 (Moderate-tier rate-limiting) sets `model: sonnet` on the stakeholder analysts and lead implementer, and `model: opus` on the adversarial reviewer — the function rules above are the general form of that pattern.
+
+#### Effort (Out of Scope)
+
+Per-expert **effort** is not controllable in the current architecture. Expert profiles are injected into `general-purpose` Task spawns via the `SubagentStart` hook (`oj-helper inject-profile`), and that spawn surface exposes no per-invocation effort knob — frontmatter on `${CLAUDE_PLUGIN_ROOT}/agents/*.md` is a no-op because the Task tool does not read those files as subagent definitions. Effort is therefore **session-level** (the user's `/effort` setting applies session-wide); it cannot be varied per expert today. Per-expert effort tiering would require re-architecting experts as native, distinct subagent types — defer; do not fabricate per-expert effort control.
+
 *Design intent (Axiom 4 — Token Efficiency)*: compact profiles at Simple tier, tier-aware context loading, output compression, and model selection by cognitive demand keep routine work cheap so that Complex work can afford maximum scrutiny.
 
 ---
