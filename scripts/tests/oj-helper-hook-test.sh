@@ -45,6 +45,14 @@
 #         migrate-legacy, assert sentinels are written + exit 0
 #         (FALSIFIER regression guard for auto-fire scenario).
 #
+# Scenarios (Axiom 8 — Convene→Consult fallback):
+#   S14 — agent-teams-check: capability probe for the Claude Code
+#         agent-teams substrate. Three sub-scenarios cover env="1"
+#         (available:true), env unset (available:false), and env="0"
+#         (available:false — FALSIFIER for loose truthiness reads).
+#         ALL three MUST exit 0 (Axiom 8: probe is a report, not a
+#         gate — the fallback IS the proceed path).
+#
 # Test isolation: each scenario builds a private tempdir T and
 # rebinds HOME, CLAUDE_PLUGIN_ROOT, CLAUDE_PLUGIN_DATA, and
 # XDG_CONFIG_HOME beneath it. Cleanup is a SINGLE-ARG EXIT trap
@@ -755,6 +763,101 @@ scenario_s13_stale_lock_recovery() {
     rm -rf "$T"; trap - EXIT
 }
 
+# ────────────────────────────────────────────────────────────────────
+# S14 — agent-teams-check: Convene capability probe (Axiom 8)
+#
+# Locks the contract behavior of `agent-teams-check`. The probe MUST
+# always exit 0 (it is a capability REPORT, not a precondition gate —
+# the Convene→Consult fallback IS the proceed path when agent-teams
+# is off). Three sub-scenarios:
+#
+#   S14a — env var == "1": JSON .available == true, .reason == "env",  exit 0
+#   S14b — env var unset:  JSON .available == false, .reason == "env_unset", exit 0
+#   S14c — env var == "0": JSON .available == false, .reason == "env_unset", exit 0
+#          (FALSIFIER: only the exact string "1" enables; "true"/"yes"/"0"/
+#          anything else degrades. Catches a misread that treated truthiness
+#          loosely and accidentally enabled TeamCreate calls on a host that
+#          can't service them.)
+# ────────────────────────────────────────────────────────────────────
+scenario_s14_agent_teams_check() {
+    # S14a — enabled
+    local T; T=$(mktemp -d -t oj-hook-s14a-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/plugin" "$T/data" "$T/xdg"
+
+    local rc=0
+    HOME="$T/home" \
+    CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_PLUGIN_DATA="$T/data" \
+    XDG_CONFIG_HOME="$T/xdg" \
+    CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 \
+    "${OJ_HELPER}" agent-teams-check >"$T/stdout" 2>"$T/stderr" || rc=$?
+
+    if [ "$rc" = "0" ]; then
+        assert_one "S14a agent-teams-check enabled: exit code 0" "ok"
+    else
+        assert_one "S14a agent-teams-check enabled: exit code 0" "fail" "exit=$rc stderr=$(cat "$T/stderr")"
+    fi
+    if jq -e '.ok == true and .available == true and .reason == "env"' "$T/stdout" >/dev/null 2>&1; then
+        assert_one "S14a agent-teams-check enabled: JSON shape {ok:true, available:true, reason:\"env\"}" "ok"
+    else
+        assert_one "S14a agent-teams-check enabled: JSON shape {ok:true, available:true, reason:\"env\"}" "fail" "stdout=$(cat "$T/stdout")"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+
+    # S14b — unset
+    T=$(mktemp -d -t oj-hook-s14b-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/plugin" "$T/data" "$T/xdg"
+
+    rc=0
+    # Inherit no CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS — explicitly unset
+    # for the child even if the parent shell happens to have it set.
+    HOME="$T/home" \
+    CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_PLUGIN_DATA="$T/data" \
+    XDG_CONFIG_HOME="$T/xdg" \
+    env -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
+    "${OJ_HELPER}" agent-teams-check >"$T/stdout" 2>"$T/stderr" || rc=$?
+
+    if [ "$rc" = "0" ]; then
+        assert_one "S14b agent-teams-check unset: exit code 0 (Axiom 8 — probe never blocks)" "ok"
+    else
+        assert_one "S14b agent-teams-check unset: exit code 0 (Axiom 8 — probe never blocks)" "fail" "exit=$rc stderr=$(cat "$T/stderr")"
+    fi
+    if jq -e '.ok == true and .available == false and .reason == "env_unset"' "$T/stdout" >/dev/null 2>&1; then
+        assert_one "S14b agent-teams-check unset: JSON shape {ok:true, available:false, reason:\"env_unset\"}" "ok"
+    else
+        assert_one "S14b agent-teams-check unset: JSON shape {ok:true, available:false, reason:\"env_unset\"}" "fail" "stdout=$(cat "$T/stdout")"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+
+    # S14c — env var == "0" (FALSIFIER: only exact "1" enables)
+    T=$(mktemp -d -t oj-hook-s14c-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/plugin" "$T/data" "$T/xdg"
+
+    rc=0
+    HOME="$T/home" \
+    CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_PLUGIN_DATA="$T/data" \
+    XDG_CONFIG_HOME="$T/xdg" \
+    CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=0 \
+    "${OJ_HELPER}" agent-teams-check >"$T/stdout" 2>"$T/stderr" || rc=$?
+
+    if [ "$rc" = "0" ]; then
+        assert_one "S14c agent-teams-check env=0: exit code 0" "ok"
+    else
+        assert_one "S14c agent-teams-check env=0: exit code 0" "fail" "exit=$rc"
+    fi
+    if jq -e '.available == false' "$T/stdout" >/dev/null 2>&1; then
+        assert_one "S14c agent-teams-check env=0: .available == false (only exact \"1\" enables)" "ok"
+    else
+        assert_one "S14c agent-teams-check env=0: .available == false (only exact \"1\" enables)" "fail" "stdout=$(cat "$T/stdout")"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+}
+
 echo -e "${YELLOW}[INFO]${NC} oj-helper-hook-test"
 echo -e "${YELLOW}[INFO]${NC} oj-helper: ${OJ_HELPER}"
 echo
@@ -772,6 +875,7 @@ scenario_s10_migrate_both_present
 scenario_s11_migrate_no_data_dir
 scenario_s12_hook_chain_integration
 scenario_s13_stale_lock_recovery
+scenario_s14_agent_teams_check
 
 echo
 echo "================================"

@@ -933,6 +933,44 @@ cmd_issue_tracker_link_list() {
 }
 
 # ────────────────────────────────────────────────────────────────────
+# agent-teams-check — Probe the Claude Code agent-teams capability
+# (the substrate that binds the Convene primitive on Claude Code).
+#
+# Always exits 0 (Axiom 8 — graceful degradation): this is a capability
+# REPORT, not a precondition gate. Failing it would defeat the fallback
+# path that justifies its existence. Skills consume the JSON `.available`
+# field to branch between the TeamCreate path and the deputy-coordinator
+# parallel-Task-tool fan-out documented in CONDUCTOR.md §4 Complex.
+#
+# Exit-code contract intentionally differs from issue-tracker-check:
+#   issue-tracker-check  — exits 1 on missing prereqs (real blocker)
+#   agent-teams-check    — exits 0 always (fallback IS the proceed path)
+# ────────────────────────────────────────────────────────────────────
+cmd_agent_teams_check() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      *) die "Unknown flag: $1" ;;
+    esac
+  done
+
+  local val="${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}"
+  if [[ "$val" == "1" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+      jq -n '{ok:true, available:true, reason:"env"}'
+    else
+      echo '{"ok":true,"available":true,"reason":"env"}'
+    fi
+  else
+    if command -v jq >/dev/null 2>&1; then
+      jq -n '{ok:true, available:false, reason:"env_unset"}'
+    else
+      echo '{"ok":true,"available":false,"reason":"env_unset"}'
+    fi
+  fi
+  return 0
+}
+
+# ────────────────────────────────────────────────────────────────────
 # Dispatcher
 # ────────────────────────────────────────────────────────────────────
 
@@ -949,6 +987,7 @@ case "${1:-}" in
   issue-tracker-transition)  shift; cmd_issue_tracker_transition "$@" ;;
   issue-tracker-comment)     shift; cmd_issue_tracker_comment "$@" ;;
   issue-tracker-link-list)   shift; cmd_issue_tracker_link_list "$@" ;;
+  agent-teams-check)         shift; cmd_agent_teams_check "$@" ;;
   help|--help|-h|"")
     cat <<'EOF'
 oj-helper — dispatcher for OpenJunto utility subcommands
@@ -970,6 +1009,8 @@ SUBCOMMANDS:
   issue-tracker-transition   Change issue state (open/closed)
   issue-tracker-comment      Add comment to issue
   issue-tracker-link-list    List cross-references for an issue
+
+  agent-teams-check          Probe agent-teams capability (Convene substrate); always exits 0
 
   help                 Show this help message
 
