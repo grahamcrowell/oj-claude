@@ -321,9 +321,9 @@ Pick the model per spawn by the spawn's **function** (what the role is doing in 
 - **Phase-1 stakeholder analysts (output compressed to FINDING / TENSION)** → **sonnet**; drop to **haiku** for bounded or lightweight lenses (e.g., docs-only review, mechanical conformance checks).
 - **Specialists engaged on a domain trigger** → **sonnet** by default; escalate to **opus** when their domain is the **decisive risk** for the engagement (e.g., Security on an auth/crypto change, SRE on an SLO-impacting change, Data Architect on a destructive migration).
 
-#### Per-Role Default Model (adjustable; reviewer-slot override always wins)
+#### Per-Role Default Model (adjustable; function rules always win)
 
-These are **starting defaults** for the role when no function rule applies. Treat them as adjustable per engagement — the function rules above take precedence whenever the role appears in the reviewer slot or as a Complex-tier lead.
+These are **starting defaults** for the role when no function rule applies. Treat them as adjustable per engagement — the function rules above always take precedence when any of them applies (reviewer-slot, Complex-tier lead, Moderate-tier lead, Phase-1 analyst, or domain-trigger specialist). The per-role default below fires only when no function rule matches the spawn.
 
 | Default Model | Roles |
 |---------------|-------|
@@ -332,6 +332,8 @@ These are **starting defaults** for the role when no function rule applies. Trea
 | **haiku** | Technical Writer (docs strategy) — escalate to **sonnet** when user-facing prose is the deliverable |
 
 Anchor example: `${CLAUDE_PLUGIN_ROOT}/reference/worked-examples.md` Example 2 (Moderate-tier rate-limiting) sets `model: sonnet` on the stakeholder analysts and lead implementer, and `model: opus` on the adversarial reviewer — the function rules above are the general form of that pattern.
+
+Second anchor (reviewer-slot wins regardless of role default): a Senior Technical Writer (role default: `haiku`) or a Senior Software Engineer (role default: `sonnet`) spawned as the adversarial reviewer runs on **`opus`** — the reviewer-slot rule wins over the role default. The reviewer slot is `opus` because of its function, not because of the reviewer's role; do not read Example 2's Security-Engineer-on-`opus` reviewer as that role's default.
 
 #### Effort (Out of Scope)
 
