@@ -53,6 +53,22 @@
 #         ALL three MUST exit 0 (Axiom 8: probe is a report, not a
 #         gate — the fallback IS the proceed path).
 #
+# Scenarios (workstream-new):
+#   S15 — workstream-new: scaffold parallel-workstream directory.
+#         S15a: help discoverability — oj-helper help stdout contains
+#               the literal substring "workstream-new".
+#         S15b: dispatcher routing — oj-helper workstream-new (no args)
+#               exits non-zero AND stderr contains "WSID is required"
+#               (not the "Unknown subcommand" branch).
+#         S15c: workspace resolution failure — run from a tempdir with
+#               no .claude/state/session.md walk-up; exits non-zero AND
+#               stderr contains "could not resolve workspace".
+#         S15d: positive scaffold + idempotency (git-guarded) — builds a
+#               fake workspace, runs workstream-new feat1 myrepo, asserts
+#               exit 0 + symlinks + real CLAUDE.md with [ws: feat1] tag +
+#               worktree present; second run asserts exit 0 + CLAUDE.md
+#               content unchanged.
+#
 # Test isolation: each scenario builds a private tempdir T and
 # rebinds HOME, CLAUDE_PLUGIN_ROOT, CLAUDE_PLUGIN_DATA, and
 # XDG_CONFIG_HOME beneath it. Cleanup is a SINGLE-ARG EXIT trap
@@ -858,6 +874,163 @@ scenario_s14_agent_teams_check() {
     rm -rf "$T"; trap - EXIT
 }
 
+# ────────────────────────────────────────────────────────────────────
+# S15 — workstream-new: scaffold parallel-workstream directory
+# ────────────────────────────────────────────────────────────────────
+scenario_s15_workstream_new() {
+    # S15a — help discoverability: "workstream-new" must appear in help text
+    local T; T=$(mktemp -d -t oj-hook-s15a-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/plugin" "$T/data" "$T/xdg"
+
+    local rc=0
+    HOME="$T/home" \
+    CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_PLUGIN_DATA="$T/data" \
+    XDG_CONFIG_HOME="$T/xdg" \
+    "${OJ_HELPER}" help >"$T/stdout" 2>"$T/stderr" || rc=$?
+
+    if grep -qF "workstream-new" "$T/stdout"; then
+        assert_one "S15a help discoverability: stdout contains \"workstream-new\"" "ok"
+    else
+        assert_one "S15a help discoverability: stdout contains \"workstream-new\"" "fail" "stdout=$(cat "$T/stdout")"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+
+    # S15b — dispatcher routing: no-args invocation must reach cmd_workstream_new,
+    #         not the Unknown-subcommand branch. Proof: stderr contains "WSID is required".
+    T=$(mktemp -d -t oj-hook-s15b-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/plugin" "$T/data" "$T/xdg"
+
+    rc=0
+    HOME="$T/home" \
+    CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_PLUGIN_DATA="$T/data" \
+    XDG_CONFIG_HOME="$T/xdg" \
+    "${OJ_HELPER}" workstream-new >"$T/stdout" 2>"$T/stderr" || rc=$?
+
+    if [ "$rc" != "0" ]; then
+        assert_one "S15b dispatcher routing: exit non-zero when WSID missing" "ok"
+    else
+        assert_one "S15b dispatcher routing: exit non-zero when WSID missing" "fail" "exit=0 (expected non-zero)"
+    fi
+    if grep -qF "WSID is required" "$T/stderr"; then
+        assert_one "S15b dispatcher routing: stderr contains \"WSID is required\" (not Unknown-subcommand branch)" "ok"
+    else
+        assert_one "S15b dispatcher routing: stderr contains \"WSID is required\" (not Unknown-subcommand branch)" "fail" "stderr=$(cat "$T/stderr")"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+
+    # S15c — workspace resolution failure: no .claude/state/session.md on walk-up
+    T=$(mktemp -d -t oj-hook-s15c-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/plugin" "$T/data" "$T/xdg" "$T/work"
+
+    rc=0
+    HOME="$T/home" \
+    CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_PLUGIN_DATA="$T/data" \
+    XDG_CONFIG_HOME="$T/xdg" \
+    "${OJ_HELPER}" workstream-new feat-x some-repo >"$T/stdout" 2>"$T/stderr" || rc=$?
+
+    if [ "$rc" != "0" ]; then
+        assert_one "S15c workspace resolution failure: exit non-zero" "ok"
+    else
+        assert_one "S15c workspace resolution failure: exit non-zero" "fail" "exit=0 (expected non-zero)"
+    fi
+    if grep -qF "could not resolve workspace" "$T/stderr"; then
+        assert_one "S15c workspace resolution failure: stderr contains \"could not resolve workspace\"" "ok"
+    else
+        assert_one "S15c workspace resolution failure: stderr contains \"could not resolve workspace\"" "fail" "stderr=$(cat "$T/stderr")"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+
+    # S15d — positive scaffold + idempotency (guarded: requires git on PATH)
+    if ! command -v git >/dev/null 2>&1; then
+        assert_one "S15d scaffold+idempotency: SKIP (git not on PATH)" "ok"
+        return 0
+    fi
+
+    T=$(mktemp -d -t oj-hook-s15d-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/plugin" "$T/data" "$T/xdg"
+
+    # Build a minimal fake workspace under $T
+    local ws="$T"
+    mkdir -p "$ws/.claude/state"
+    touch "$ws/.claude/state/session.md"
+    touch "$ws/.claude/BACKLOG.md"
+    mkdir -p "$ws/myrepo"
+    (cd "$ws/myrepo" && git init -q && git config user.email a@b && git config user.name a && git commit -q --allow-empty -m init)
+
+    rc=0
+    HOME="$T/home" \
+    CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_PLUGIN_DATA="$T/data" \
+    XDG_CONFIG_HOME="$T/xdg" \
+    "${OJ_HELPER}" workstream-new feat1 myrepo --workspace "$ws" >"$T/stdout" 2>"$T/stderr" || rc=$?
+
+    if [ "$rc" = "0" ]; then
+        assert_one "S15d scaffold: exit 0" "ok"
+    else
+        assert_one "S15d scaffold: exit 0" "fail" "exit=$rc stderr=$(cat "$T/stderr")"
+    fi
+
+    local session_link="$ws/.workstreams/feat1/.claude/state/session.md"
+    if [ -L "$session_link" ]; then
+        assert_one "S15d scaffold: .workstreams/feat1/.claude/state/session.md is a symlink" "ok"
+    else
+        assert_one "S15d scaffold: .workstreams/feat1/.claude/state/session.md is a symlink" "fail" "path: $session_link ls=$(ls -la "$session_link" 2>&1)"
+    fi
+
+    local claude_md="$ws/.workstreams/feat1/.claude/CLAUDE.md"
+    if [ -f "$claude_md" ] && [ ! -L "$claude_md" ]; then
+        assert_one "S15d scaffold: .workstreams/feat1/.claude/CLAUDE.md is a real file (not a symlink)" "ok"
+    else
+        assert_one "S15d scaffold: .workstreams/feat1/.claude/CLAUDE.md is a real file (not a symlink)" "fail" "path: $claude_md"
+    fi
+
+    if grep -qF "[ws: feat1]" "$claude_md" 2>/dev/null; then
+        assert_one "S15d scaffold: CLAUDE.md contains [ws: feat1]" "ok"
+    else
+        assert_one "S15d scaffold: CLAUDE.md contains [ws: feat1]" "fail" "content=$(cat "$claude_md" 2>&1)"
+    fi
+
+    local worktree_git="$ws/.workstreams/feat1/myrepo/.git"
+    if [ -e "$worktree_git" ]; then
+        assert_one "S15d scaffold: .workstreams/feat1/myrepo/.git exists (worktree present)" "ok"
+    else
+        assert_one "S15d scaffold: .workstreams/feat1/myrepo/.git exists (worktree present)" "fail" "path not found: $worktree_git"
+    fi
+
+    # Idempotency: capture CLAUDE.md content, re-run, assert content unchanged
+    local original_content
+    original_content=$(cat "$claude_md")
+
+    rc=0
+    HOME="$T/home" \
+    CLAUDE_PLUGIN_ROOT="$T/plugin" \
+    CLAUDE_PLUGIN_DATA="$T/data" \
+    XDG_CONFIG_HOME="$T/xdg" \
+    "${OJ_HELPER}" workstream-new feat1 myrepo --workspace "$ws" >"$T/stdout2" 2>"$T/stderr2" || rc=$?
+
+    if [ "$rc" = "0" ]; then
+        assert_one "S15d idempotency: second run exits 0" "ok"
+    else
+        assert_one "S15d idempotency: second run exits 0" "fail" "exit=$rc stderr=$(cat "$T/stderr2")"
+    fi
+
+    local second_content
+    second_content=$(cat "$claude_md")
+    if [ "$original_content" = "$second_content" ]; then
+        assert_one "S15d idempotency: CLAUDE.md content unchanged on second run" "ok"
+    else
+        assert_one "S15d idempotency: CLAUDE.md content unchanged on second run" "fail" "content changed"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+}
+
 echo -e "${YELLOW}[INFO]${NC} oj-helper-hook-test"
 echo -e "${YELLOW}[INFO]${NC} oj-helper: ${OJ_HELPER}"
 echo
@@ -876,6 +1049,7 @@ scenario_s11_migrate_no_data_dir
 scenario_s12_hook_chain_integration
 scenario_s13_stale_lock_recovery
 scenario_s14_agent_teams_check
+scenario_s15_workstream_new
 
 echo
 echo "================================"
