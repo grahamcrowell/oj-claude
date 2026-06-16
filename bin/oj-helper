@@ -996,8 +996,8 @@ cmd_agent_teams_check() {
 #
 # Workspace resolution (in order):
 #   1. --workspace <path>
-#   2. $PWD if $PWD/.claude/state/session.md exists
-#   3. Walk up from $PWD to the first ancestor with .claude/state/session.md
+#   2. $PWD if $PWD/.claude/local/state/session.md exists
+#   3. Walk up from $PWD to the first ancestor with .claude/local/state/session.md
 #
 # Idempotent — re-running yields the same end state. Existing real files
 # in the workstream .claude/ are backed up with a timestamp before being
@@ -1010,7 +1010,7 @@ cmd_agent_teams_check() {
 # ────────────────────────────────────────────────────────────────────
 _workstream_resolve_workspace() {
   # Echo the resolved workspace path or empty string. A workspace is
-  # any directory containing .claude/state/session.md.
+  # any directory containing .claude/local/state/session.md.
   local explicit="${1:-}"
   if [[ -n "$explicit" ]]; then
     [[ -d "$explicit" ]] || die "workstream-new: --workspace path does not exist: $explicit"
@@ -1019,7 +1019,7 @@ _workstream_resolve_workspace() {
   fi
   local dir="$PWD"
   while [[ "$dir" != "/" ]]; do
-    if [[ -f "$dir/.claude/state/session.md" ]]; then
+    if [[ -f "$dir/.claude/local/state/session.md" ]]; then
       echo "$dir"
       return 0
     fi
@@ -1068,7 +1068,7 @@ _workstream_link_all() {
   # backlog locations (e.g. .claude/local/backlog/BACKLOG.md) can wrap
   # this command in a project script that also links those paths.
   local workspace="$1" dst_base="$2"
-  _workstream_link_one "$workspace" "$dst_base" "state/session.md" required
+  _workstream_link_one "$workspace" "$dst_base" "local/state/session.md" required
   _workstream_link_one "$workspace" "$dst_base" "BACKLOG.md"       required
   _workstream_link_one "$workspace" "$dst_base" "artifacts"        optional
 }
@@ -1096,7 +1096,7 @@ cmd_workstream_new() {
 
   local workspace
   workspace=$(_workstream_resolve_workspace "$explicit_workspace")
-  [[ -n "$workspace" ]] || die "workstream-new: could not resolve workspace. No .claude/state/session.md found at or above \$PWD. Pass --workspace <path>."
+  [[ -n "$workspace" ]] || die "workstream-new: could not resolve workspace. No .claude/local/state/session.md found at or above \$PWD. Pass --workspace <path>."
 
   [[ -d "$workspace/$repo" ]]       || die "workstream-new: repo not found in workspace: $workspace/$repo"
   [[ -e "$workspace/$repo/.git" ]]  || die "workstream-new: not a git repo: $workspace/$repo"
@@ -1117,11 +1117,11 @@ cmd_workstream_new() {
     cat > "$claude_md" <<EOF
 # Workstream: $wsid
 
-CWD is a workstream directory. The files under \`.claude/state/\`, \`.claude/BACKLOG.md\`, and \`.claude/artifacts/\` are SYMLINKS to the canonical workspace state at \`$workspace/.claude/\` — every workstream writes into the same files.
+CWD is a workstream directory. The files under \`.claude/local/state/\`, \`.claude/BACKLOG.md\`, and \`.claude/artifacts/\` are SYMLINKS to the canonical workspace state at \`$workspace/.claude/\` — every workstream writes into the same files.
 
 ## Tagging rule (required)
 
-Every new entry appended to \`.claude/BACKLOG.md\`, \`.claude/state/session.md\`, or any file created under \`.claude/artifacts/\` MUST include the tag \`[ws: $wsid]\` so the entry remains attributable across workstreams.
+Every new entry appended to \`.claude/BACKLOG.md\`, \`.claude/local/state/session.md\`, or any file created under \`.claude/artifacts/\` MUST include the tag \`[ws: $wsid]\` so the entry remains attributable across workstreams.
 
 Existing entries owned by other workstreams MUST NOT be edited or removed. Only entries tagged \`[ws: $wsid]\` (or untagged entries you yourself just authored in this session) may be modified.
 

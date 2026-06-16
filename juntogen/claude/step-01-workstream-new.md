@@ -30,7 +30,7 @@ A **workstream** is an isolated execution environment for a single `/oj:cycle` t
 
 - Lives at `<workspace>/.workstreams/<wsid>/`
 - Contains a git worktree of `<repo>` at `./<repo>` (branch: `<branch>`, default: `<wsid>`)
-- Has a `.claude/` directory whose `state/session.md`, `BACKLOG.md`, and `artifacts/` are SYMLINKS to the canonical workspace `.claude/` — all workstreams read and write the same shared files
+- Has a `.claude/` directory whose `local/state/session.md`, `BACKLOG.md`, and `artifacts/` are SYMLINKS to the canonical workspace `.claude/` — all workstreams read and write the same shared files
 - Has a `.claude/CLAUDE.md` that is a real file (never a symlink) carrying the tagging discipline
 
 ### Per-workstream tagging discipline
@@ -46,17 +46,17 @@ Every entry appended to shared state files MUST be tagged `[ws: <wsid>]` so entr
 Implement `cmd_workstream_new` and its three private helpers:
 
 **`_workstream_resolve_workspace <explicit>`**
-Echoes the resolved workspace path or empty string. Workspace = any directory containing `.claude/state/session.md`. Resolution order:
+Echoes the resolved workspace path or empty string. Workspace = any directory containing `.claude/local/state/session.md`. Resolution order:
 1. `--workspace <path>` (if provided, must exist)
-2. `$PWD` if `$PWD/.claude/state/session.md` exists
-3. Walk up from `$PWD` to the first ancestor with `.claude/state/session.md`
+2. `$PWD` if `$PWD/.claude/local/state/session.md` exists
+3. Walk up from `$PWD` to the first ancestor with `.claude/local/state/session.md`
 4. Empty string on failure
 
 **`_workstream_link_one <workspace> <dst-claude-dir> <relative-path> <required|optional>`**
 Replaces `<dst>/<rel>` with a symlink to `<workspace>/.claude/<rel>`. If the target is already a correct symlink, print `ok`. If it is a real file, back it up with a timestamp suffix before replacing. If the source does not exist: fail loudly when `required`, skip silently when `optional`.
 
 **`_workstream_link_all <workspace> <dst-claude-dir>`**
-Links three paths: `state/session.md` (required), `BACKLOG.md` (required), `artifacts` (optional).
+Links three paths: `local/state/session.md` (required), `BACKLOG.md` (required), `artifacts` (optional).
 
 **`cmd_workstream_new [--workspace <path>] <wsid> <repo> [branch]`**
 1. Parse positional args and `--workspace` flag. `wsid` and `repo` are required.
@@ -93,11 +93,11 @@ workstream-new)  shift; cmd_workstream_new "$@" ;;
 
 The file written to `$ws_dir/.claude/CLAUDE.md` must contain all three rules:
 
-1. **Tagging rule** — every new entry to `BACKLOG.md`, `state/session.md`, or `artifacts/` must carry `[ws: <wsid>]`.
+1. **Tagging rule** — every new entry to `BACKLOG.md`, `local/state/session.md`, or `artifacts/` must carry `[ws: <wsid>]`.
 2. **Don't-touch-other-workstreams rule** — entries tagged with a different workstream (or untagged entries not authored in this session) must not be edited or removed.
 3. **No workstream tag in external artifacts** — the branch name and issue-tracker key are the correct identifiers for PR titles, commit messages, and external surfaces; never include `[ws: <wsid>]` in externally visible artifacts.
 
-The file must also note that `.claude/state/`, `.claude/BACKLOG.md`, and `.claude/artifacts/` are symlinks to the canonical workspace, and name `./<repo>` as a git worktree on `<branch>`.
+The file must also note that `.claude/local/state/`, `.claude/BACKLOG.md`, and `.claude/artifacts/` are symlinks to the canonical workspace, and name `./<repo>` as a git worktree on `<branch>`.
 
 ### Test scenarios (`scripts/tests/oj-helper-hook-test.sh`)
 
@@ -110,12 +110,12 @@ Assert `oj-helper help` stdout contains the literal substring `workstream-new`. 
 Run `oj-helper workstream-new` (no args) in a clean tempdir. Assert: exit non-zero AND stderr contains `WSID is required`. This proves the token routed to `cmd_workstream_new` and hit its usage check — not the `Unknown subcommand` branch.
 
 **S15c — workspace resolution failure**
-Run from a tempdir with no `.claude/state/session.md` anywhere on the walk-up. Pass valid wsid and repo. Assert: exit non-zero AND stderr contains `could not resolve workspace`.
+Run from a tempdir with no `.claude/local/state/session.md` anywhere on the walk-up. Pass valid wsid and repo. Assert: exit non-zero AND stderr contains `could not resolve workspace`.
 
 **S15d — positive scaffold + idempotency**
-Build a minimal fake workspace: `mkdir -p .claude/state && touch .claude/state/session.md && touch .claude/BACKLOG.md && mkdir -p myrepo && (cd myrepo && git init -q && git config user.email a@b && git config user.name a && git commit -q --allow-empty -m init)`. Run `oj-helper workstream-new feat1 myrepo --workspace <tempdir>`. Assert:
+Build a minimal fake workspace: `mkdir -p .claude/local/state && touch .claude/local/state/session.md && touch .claude/BACKLOG.md && mkdir -p myrepo && (cd myrepo && git init -q && git config user.email a@b && git config user.name a && git commit -q --allow-empty -m init)`. Run `oj-helper workstream-new feat1 myrepo --workspace <tempdir>`. Assert:
 - exit 0
-- `.workstreams/feat1/.claude/state/session.md` is a symlink
+- `.workstreams/feat1/.claude/local/state/session.md` is a symlink
 - `.workstreams/feat1/.claude/CLAUDE.md` is a real file (not a symlink) containing `[ws: feat1]`
 - `.workstreams/feat1/myrepo/.git` exists
 
@@ -167,7 +167,7 @@ The generated output must satisfy all of the following before it is considered c
 - S15a asserts help text contains `workstream-new`.
 - S15b asserts exit non-zero + stderr contains `WSID is required` (not `Unknown subcommand`).
 - S15c asserts exit non-zero + stderr contains `could not resolve workspace`.
-- S15d asserts exit 0, symlink at `state/session.md`, real file at `.claude/CLAUDE.md` containing `[ws: feat1]`, worktree `.git` present; second run exits 0 with CLAUDE.md content unchanged.
+- S15d asserts exit 0, symlink at `local/state/session.md`, real file at `.claude/CLAUDE.md` containing `[ws: feat1]`, worktree `.git` present; second run exits 0 with CLAUDE.md content unchanged.
 - S15d is SKIP-guarded when `git` is not on PATH.
 - Each sub-scenario uses an isolated tempdir with trap cleanup.
 

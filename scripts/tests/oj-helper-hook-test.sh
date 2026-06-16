@@ -61,7 +61,7 @@
 #               exits non-zero AND stderr contains "WSID is required"
 #               (not the "Unknown subcommand" branch).
 #         S15c: workspace resolution failure — run from a tempdir with
-#               no .claude/state/session.md walk-up; exits non-zero AND
+#               no .claude/local/state/session.md walk-up; exits non-zero AND
 #               stderr contains "could not resolve workspace".
 #         S15d: positive scaffold + idempotency (git-guarded) — builds a
 #               fake workspace, runs workstream-new feat1 myrepo, asserts
@@ -922,7 +922,7 @@ scenario_s15_workstream_new() {
 
     rm -rf "$T"; trap - EXIT
 
-    # S15c — workspace resolution failure: no .claude/state/session.md on walk-up
+    # S15c — workspace resolution failure: no .claude/local/state/session.md on walk-up
     T=$(mktemp -d -t oj-hook-s15c-XXXXXX); trap 'rm -rf "$T"' EXIT
     mkdir -p "$T/home" "$T/plugin" "$T/data" "$T/xdg" "$T/work"
 
@@ -957,8 +957,8 @@ scenario_s15_workstream_new() {
 
     # Build a minimal fake workspace under $T
     local ws="$T"
-    mkdir -p "$ws/.claude/state"
-    touch "$ws/.claude/state/session.md"
+    mkdir -p "$ws/.claude/local/state"
+    touch "$ws/.claude/local/state/session.md"
     touch "$ws/.claude/BACKLOG.md"
     mkdir -p "$ws/myrepo"
     (cd "$ws/myrepo" && git init -q && git config user.email a@b && git config user.name a && git commit -q --allow-empty -m init)
@@ -976,11 +976,11 @@ scenario_s15_workstream_new() {
         assert_one "S15d scaffold: exit 0" "fail" "exit=$rc stderr=$(cat "$T/stderr")"
     fi
 
-    local session_link="$ws/.workstreams/feat1/.claude/state/session.md"
+    local session_link="$ws/.workstreams/feat1/.claude/local/state/session.md"
     if [ -L "$session_link" ]; then
-        assert_one "S15d scaffold: .workstreams/feat1/.claude/state/session.md is a symlink" "ok"
+        assert_one "S15d scaffold: .workstreams/feat1/.claude/local/state/session.md is a symlink" "ok"
     else
-        assert_one "S15d scaffold: .workstreams/feat1/.claude/state/session.md is a symlink" "fail" "path: $session_link ls=$(ls -la "$session_link" 2>&1)"
+        assert_one "S15d scaffold: .workstreams/feat1/.claude/local/state/session.md is a symlink" "fail" "path: $session_link ls=$(ls -la "$session_link" 2>&1)"
     fi
 
     local claude_md="$ws/.workstreams/feat1/.claude/CLAUDE.md"
