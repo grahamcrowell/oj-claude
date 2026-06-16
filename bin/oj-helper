@@ -971,6 +971,203 @@ cmd_agent_teams_check() {
 }
 
 # ────────────────────────────────────────────────────────────────────
+# workstream-new — Scaffold a parallel-workstream directory
+# ────────────────────────────────────────────────────────────────────
+# Creates <workspace>/.workstreams/<wsid>/ for running an isolated
+# /oj:cycle thread that shares the workspace's canonical .claude/ state
+# (BACKLOG.md, session, artifacts) with other concurrent workstreams.
+#
+# The workstream directory contains:
+#   - .claude/ whose state files are SYMLINKS back to the workspace's
+#     canonical .claude/. All workstreams write into the same files;
+#     each entry is attributed via a [ws: <wsid>] tag (enforced by
+#     the per-workstream CLAUDE.md below).
+#   - .claude/CLAUDE.md (real file, not a symlink) carrying the
+#     tagging directive and the don't-touch-other-workstreams rule.
+#   - A git worktree of <repo> at ./<repo>, branched at <branch>
+#     (default: <wsid>).
+#
+# Intended workflow:
+#   oj-helper workstream-new DATA-1234 my-repo
+#   cd <workspace>/.workstreams/DATA-1234
+#   claude
+#   > /rename DATA-1234
+#   > /oj:cycle  <prompt targeting ./my-repo>
+#
+# Workspace resolution (in order):
+#   1. --workspace <path>
+#   2. $PWD if $PWD/.claude/state/session.md exists
+#   3. Walk up from $PWD to the first ancestor with .claude/state/session.md
+#
+# Idempotent — re-running yields the same end state. Existing real files
+# in the workstream .claude/ are backed up with a timestamp before being
+# replaced with symlinks. .claude/CLAUDE.md is never overwritten.
+#
+# Exit codes:
+#   0 — workstream created (or already present); summary on stdout
+#   1 — driver error (workspace not resolved, repo missing, etc.)
+#   2 — usage error
+# ────────────────────────────────────────────────────────────────────
+_workstream_resolve_workspace() {
+  # Echo the resolved workspace path or empty string. A workspace is
+  # any directory containing .claude/state/session.md.
+  local explicit="${1:-}"
+  if [[ -n "$explicit" ]]; then
+    [[ -d "$explicit" ]] || die "workstream-new: --workspace path does not exist: $explicit"
+    (cd "$explicit" && pwd)
+    return 0
+  fi
+  local dir="$PWD"
+  while [[ "$dir" != "/" ]]; do
+    if [[ -f "$dir/.claude/state/session.md" ]]; then
+      echo "$dir"
+      return 0
+    fi
+    dir=$(dirname "$dir")
+  done
+  echo ""
+}
+
+_workstream_link_one() {
+  # _workstream_link_one <workspace> <dst-claude-dir> <relative-path> <required|optional>
+  # Replaces <dst>/<rel> with a symlink to <workspace>/.claude/<rel>.
+  local workspace="$1" dst_base="$2" rel="$3" required="$4"
+  local src="$workspace/.claude/$rel"
+  local dst="$dst_base/$rel"
+
+  if [[ ! -e "$src" && ! -L "$src" ]]; then
+    if [[ "$required" == "required" ]]; then
+      echo "  MISSING $rel (not in workspace) — workspace state is incomplete" >&2
+      return 1
+    fi
+    echo "  skip    $rel (not in workspace)"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$dst")"
+
+  if [[ -L "$dst" ]]; then
+    if [[ "$(readlink "$dst")" == "$src" ]]; then
+      echo "  ok      $rel (already linked)"
+      return 0
+    fi
+    rm "$dst"
+  elif [[ -e "$dst" ]]; then
+    local backup="${dst}.bak.$(date +%Y%m%d-%H%M%S)"
+    mv "$dst" "$backup"
+    echo "  backup  $rel -> $backup"
+  fi
+
+  ln -s "$src" "$dst"
+  echo "  link    $rel -> $src"
+}
+
+_workstream_link_all() {
+  # _workstream_link_all <workspace> <dst-claude-dir>
+  # Links the canonical oj state paths. Adopters with non-canonical
+  # backlog locations (e.g. .claude/local/backlog/BACKLOG.md) can wrap
+  # this command in a project script that also links those paths.
+  local workspace="$1" dst_base="$2"
+  _workstream_link_one "$workspace" "$dst_base" "state/session.md" required
+  _workstream_link_one "$workspace" "$dst_base" "BACKLOG.md"       required
+  _workstream_link_one "$workspace" "$dst_base" "artifacts"        optional
+}
+
+cmd_workstream_new() {
+  local wsid="" repo="" branch="" explicit_workspace=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --workspace) explicit_workspace="${2:-}"; shift 2 ;;
+      --*)         die "Unknown flag: $1" ;;
+      *)
+        if   [[ -z "$wsid" ]];   then wsid="$1"
+        elif [[ -z "$repo" ]];   then repo="$1"
+        elif [[ -z "$branch" ]]; then branch="$1"
+        else die "Unexpected argument: $1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  [[ -n "$wsid" ]] || die "workstream-new: WSID is required (usage: workstream-new <wsid> <repo> [branch] [--workspace <path>])"
+  [[ -n "$repo" ]] || die "workstream-new: REPO is required (usage: workstream-new <wsid> <repo> [branch] [--workspace <path>])"
+  [[ -n "$branch" ]] || branch="$wsid"
+
+  local workspace
+  workspace=$(_workstream_resolve_workspace "$explicit_workspace")
+  [[ -n "$workspace" ]] || die "workstream-new: could not resolve workspace. No .claude/state/session.md found at or above \$PWD. Pass --workspace <path>."
+
+  [[ -d "$workspace/$repo" ]]       || die "workstream-new: repo not found in workspace: $workspace/$repo"
+  [[ -e "$workspace/$repo/.git" ]]  || die "workstream-new: not a git repo: $workspace/$repo"
+
+  local ws_dir="$workspace/.workstreams/$wsid"
+  mkdir -p "$ws_dir/.claude"
+
+  echo "Workspace:  $workspace"
+  echo "Workstream: $ws_dir"
+  echo "Repo:       $repo"
+  echo "Branch:     $branch"
+  echo
+  echo "Linking shared oj state into workstream .claude/ ..."
+  _workstream_link_all "$workspace" "$ws_dir/.claude"
+
+  local claude_md="$ws_dir/.claude/CLAUDE.md"
+  if [[ ! -e "$claude_md" ]]; then
+    cat > "$claude_md" <<EOF
+# Workstream: $wsid
+
+CWD is a workstream directory. The files under \`.claude/state/\`, \`.claude/BACKLOG.md\`, and \`.claude/artifacts/\` are SYMLINKS to the canonical workspace state at \`$workspace/.claude/\` — every workstream writes into the same files.
+
+## Tagging rule (required)
+
+Every new entry appended to \`.claude/BACKLOG.md\`, \`.claude/state/session.md\`, or any file created under \`.claude/artifacts/\` MUST include the tag \`[ws: $wsid]\` so the entry remains attributable across workstreams.
+
+Existing entries owned by other workstreams MUST NOT be edited or removed. Only entries tagged \`[ws: $wsid]\` (or untagged entries you yourself just authored in this session) may be modified.
+
+## External references
+
+The branch name \`$branch\` and any associated issue-tracker key are the correct identifiers for PR titles, commit messages, and external surfaces. Never include the workstream tag \`[ws: $wsid]\` or any local BACKLOG.md item id in externally visible artifacts.
+
+## Worktree
+
+\`./$repo\` is a git worktree of \`$workspace/$repo\` on branch \`$branch\`.
+EOF
+    echo "  wrote   .claude/CLAUDE.md (workstream tagging directive)"
+  else
+    echo "  ok      .claude/CLAUDE.md (already present, not overwritten)"
+  fi
+
+  echo
+  echo "Creating git worktree ..."
+  local wt_path="$ws_dir/$repo"
+  if [[ -e "$wt_path/.git" ]]; then
+    echo "  ok      $wt_path (worktree already present)"
+  else
+    if git -C "$workspace/$repo" rev-parse --verify --quiet "refs/heads/$branch" >/dev/null; then
+      git -C "$workspace/$repo" worktree add "$wt_path" "$branch"
+    else
+      git -C "$workspace/$repo" worktree add "$wt_path" -b "$branch"
+    fi
+    echo "  ok      $wt_path (branch: $branch)"
+  fi
+
+  echo
+  echo "Linking shared oj state into worktree .claude/ ..."
+  mkdir -p "$wt_path/.claude"
+  _workstream_link_all "$workspace" "$wt_path/.claude"
+
+  echo
+  echo "Done."
+  echo
+  echo "Next steps:"
+  echo "  cd $ws_dir"
+  echo "  claude"
+  echo "  > /rename $wsid"
+  echo "  > /oj:cycle  <prompt targeting ./$repo>"
+}
+
+# ────────────────────────────────────────────────────────────────────
 # Dispatcher
 # ────────────────────────────────────────────────────────────────────
 
@@ -988,6 +1185,7 @@ case "${1:-}" in
   issue-tracker-comment)     shift; cmd_issue_tracker_comment "$@" ;;
   issue-tracker-link-list)   shift; cmd_issue_tracker_link_list "$@" ;;
   agent-teams-check)         shift; cmd_agent_teams_check "$@" ;;
+  workstream-new)            shift; cmd_workstream_new "$@" ;;
   help|--help|-h|"")
     cat <<'EOF'
 oj-helper — dispatcher for OpenJunto utility subcommands
@@ -1012,6 +1210,8 @@ SUBCOMMANDS:
 
   agent-teams-check          Probe agent-teams capability (Convene substrate); always exits 0
 
+  workstream-new             Scaffold a parallel-workstream dir (git worktree + linked .claude/ state)
+
   help                 Show this help message
 
 ENVIRONMENT:
@@ -1023,6 +1223,8 @@ EXAMPLES:
   oj-helper issue-tracker-check
   oj-helper issue-tracker-list --limit 20
   oj-helper feedback-path
+  oj-helper workstream-new DATA-1234 my-repo
+  oj-helper workstream-new feat-x my-repo my-feature-branch --workspace ~/m/data-lake
 
 LEGACY COMPATIBILITY:
   Invoked via `junto-helper` symlink during the rename transition. Legacy env
