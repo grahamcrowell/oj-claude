@@ -996,8 +996,12 @@ cmd_agent_teams_check() {
 #
 # Workspace resolution (in order):
 #   1. --workspace <path>
-#   2. $PWD if $PWD/.claude/local/state/session.md exists
-#   3. Walk up from $PWD to the first ancestor with .claude/local/state/session.md
+#   2. $OJ_STATE_ROOT env var: if set, the workspace is its parent dir of
+#      `.claude/` (i.e. ${OJ_STATE_ROOT%/.claude/local}). Lets a SessionStart
+#      hook pin the canonical workspace regardless of $PWD — required for
+#      sessions launched from a subrepo or worktree.
+#   3. $PWD if $PWD/.claude/local/state/session.md exists
+#   4. Walk up from $PWD to the first ancestor with .claude/local/state/session.md
 #
 # Idempotent — re-running yields the same end state. Existing real files
 # in the workstream .claude/ are backed up with a timestamp before being
@@ -1016,6 +1020,15 @@ _workstream_resolve_workspace() {
     [[ -d "$explicit" ]] || die "workstream-new: --workspace path does not exist: $explicit"
     (cd "$explicit" && pwd)
     return 0
+  fi
+  # Env-var override (set by SessionStart hook). OJ_STATE_ROOT points at
+  # the .claude/local dir; the workspace is its grandparent.
+  if [[ -n "${OJ_STATE_ROOT:-}" ]]; then
+    local candidate="${OJ_STATE_ROOT%/.claude/local}"
+    if [[ "$candidate" != "$OJ_STATE_ROOT" && -d "$candidate" && -f "$candidate/.claude/local/state/session.md" ]]; then
+      (cd "$candidate" && pwd)
+      return 0
+    fi
   fi
   local dir="$PWD"
   while [[ "$dir" != "/" ]]; do
@@ -1064,13 +1077,12 @@ _workstream_link_one() {
 
 _workstream_link_all() {
   # _workstream_link_all <workspace> <dst-claude-dir>
-  # Links the canonical oj state paths. Adopters with non-canonical
-  # backlog locations (e.g. .claude/local/backlog/BACKLOG.md) can wrap
-  # this command in a project script that also links those paths.
+  # Links the canonical oj state paths. All under .claude/local/ now —
+  # state, backlog, and artifacts have a single shared root.
   local workspace="$1" dst_base="$2"
-  _workstream_link_one "$workspace" "$dst_base" "local/state/session.md" required
-  _workstream_link_one "$workspace" "$dst_base" "BACKLOG.md"       required
-  _workstream_link_one "$workspace" "$dst_base" "artifacts"        optional
+  _workstream_link_one "$workspace" "$dst_base" "local/state/session.md"   required
+  _workstream_link_one "$workspace" "$dst_base" "local/backlog/BACKLOG.md" required
+  _workstream_link_one "$workspace" "$dst_base" "local/artifacts"          optional
 }
 
 cmd_workstream_new() {
@@ -1096,7 +1108,7 @@ cmd_workstream_new() {
 
   local workspace
   workspace=$(_workstream_resolve_workspace "$explicit_workspace")
-  [[ -n "$workspace" ]] || die "workstream-new: could not resolve workspace. No .claude/local/state/session.md found at or above \$PWD. Pass --workspace <path>."
+  [[ -n "$workspace" ]] || die "workstream-new: could not resolve workspace. No .claude/local/state/session.md found at or above \$PWD, and \$OJ_STATE_ROOT not set. Pass --workspace <path>, or set OJ_STATE_ROOT in a SessionStart hook."
 
   [[ -d "$workspace/$repo" ]]       || die "workstream-new: repo not found in workspace: $workspace/$repo"
   [[ -e "$workspace/$repo/.git" ]]  || die "workstream-new: not a git repo: $workspace/$repo"
@@ -1117,11 +1129,11 @@ cmd_workstream_new() {
     cat > "$claude_md" <<EOF
 # Workstream: $wsid
 
-CWD is a workstream directory. The files under \`.claude/local/state/\`, \`.claude/BACKLOG.md\`, and \`.claude/artifacts/\` are SYMLINKS to the canonical workspace state at \`$workspace/.claude/\` — every workstream writes into the same files.
+CWD is a workstream directory. The files under \`.claude/local/state/\`, \`.claude/local/backlog/BACKLOG.md\`, and \`.claude/local/artifacts/\` are SYMLINKS to the canonical workspace state at \`$workspace/.claude/local/\` — every workstream writes into the same files.
 
 ## Tagging rule (required)
 
-Every new entry appended to \`.claude/BACKLOG.md\`, \`.claude/local/state/session.md\`, or any file created under \`.claude/artifacts/\` MUST include the tag \`[ws: $wsid]\` so the entry remains attributable across workstreams.
+Every new entry appended to \`.claude/local/backlog/BACKLOG.md\`, \`.claude/local/state/session.md\`, or any file created under \`.claude/local/artifacts/\` MUST include the tag \`[ws: $wsid]\` so the entry remains attributable across workstreams.
 
 Existing entries owned by other workstreams MUST NOT be edited or removed. Only entries tagged \`[ws: $wsid]\` (or untagged entries you yourself just authored in this session) may be modified.
 
