@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.0.4 — 2026-06-20
 
 **Provenance**: hand-cut (no juntogen regen). Scope: a path-resolution layer so skills defer to the host project's state layout, plus a delegation-boundary scope clause.
 
@@ -10,7 +10,9 @@
 - `CONDUCTOR.md` — Delegation Boundary gains a **SCOPE** clause: it binds inside `/oj:cycle` / `/oj:run-task` and at Moderate/Complex tier, and explicitly does not bind free-form requests, Simple-tier work, or host projects whose `.claude/CLAUDE.md` defines a hands-on engineering workflow (project instructions take precedence). Templates table + responsibilities line reference `resolve-path`.
 - `reference/file-patterns.md` — doc-wide callout that its `.claude/...` paths are `legacy`-layout defaults and `resolve-path` is the runtime source of truth.
 
-**Not included** (deferred to release): `VERSION` / `.claude-plugin/plugin.json` bump.
+**DATA artifacts**:
+- `VERSION` (0.0.3 → 0.0.4)
+- `.claude-plugin/plugin.json` (version 0.0.3 → 0.0.4)
 
 ## v0.0.3 — 2026-06-19
 
