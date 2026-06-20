@@ -11,11 +11,22 @@ Persist session state before `/clear` so context carries into the next session. 
 
 ## Protocol
 
+### Step 0 — Resolve Canonical Paths
+
+Before reading or writing any state, resolve the project's canonical paths:
+
+```bash
+oj-helper resolve-path session   # → <session-file>
+oj-helper resolve-path backlog   # → <backlog-file>
+```
+
+Throughout this document, `<session-file>` and `<backlog-file>` refer to those resolved absolute paths. This lets a project relocate state (e.g. a canonical-state-root under `.claude/local/`) without forking the skill. **Fallback:** if `oj-helper` is unavailable or prints nothing, default to `<session-file>` and `.claude/BACKLOG.md`.
+
 ### Step 1 — Read Current State
 
-Read `.claude/state/session.md` (if it exists) and `.claude/CLAUDE.md` to understand the current project context, active work, and conventions.
+Read `<session-file>` (if it exists) and `.claude/CLAUDE.md` to understand the current project context, active work, and conventions.
 
-If `.claude/state/session.md` does **not** exist, offer to create it from the template at `${CLAUDE_PLUGIN_ROOT}/templates/session-state.md`. Do not create it silently.
+If `<session-file>` does **not** exist, offer to create it from the template at `${CLAUDE_PLUGIN_ROOT}/templates/session-state.md`. Do not create it silently.
 
 ### Step 2 — Scan Working State
 
@@ -29,7 +40,7 @@ For **multi-repo projects**, scan the repos listed in `.claude/CLAUDE.md` (look 
 
 ### Step 3 — Check In-Flight PRs
 
-If `.claude/state/session.md` lists PRs in an "In-Flight PRs" section, check each PR's status:
+If `<session-file>` lists PRs in an "In-Flight PRs" section, check each PR's status:
 
 - Run `gh pr view <number> --json state,statusCheckRollup,mergeable` for each PR
 - Update recorded status: open, merged, closed, checks passing or failing
@@ -38,7 +49,7 @@ If no PRs are listed, **skip this step**.
 
 ### Step 4 — Verify Backlog Consistency
 
-Read `.claude/BACKLOG.md` and check:
+Read `<backlog-file>` and check:
 
 - If the header states an item count, does it match the actual item count?
 - Do any items marked "Blocked By" reference items that are now completed? (Potential unblock.)
@@ -51,7 +62,7 @@ Look for ad-hoc input files in the repo root — for example `tasks.md`, `notes.
 
 ### Step 6 — Draft Session Update
 
-Compose an updated `.claude/state/session.md` containing:
+Compose an updated `<session-file>` containing:
 
 - Current session number (increment from the previous session)
 - Today's date
@@ -66,7 +77,7 @@ Compose an updated `.claude/state/session.md` containing:
 
 Present the complete proposed changes to the user as a **diff-style summary**:
 
-- What will be written to `.claude/state/session.md`
+- What will be written to `<session-file>`
 - Any flagged issues: unprocessed input files, backlog inconsistencies, stale PRs
 
 **Apply changes only after user approval.** If the user rejects the proposal, explain what was proposed and ask for guidance — do not silently drop the work.
@@ -74,6 +85,6 @@ Present the complete proposed changes to the user as a **diff-style summary**:
 ## Constraints
 
 - **Approval required** — never auto-write; present all changes first
-- **Non-destructive** — if `.claude/state/session.md` exists, show what will change; never delete content without presenting it first
+- **Non-destructive** — if `<session-file>` exists, show what will change; never delete content without presenting it first
 - **Graceful degradation** — if any file does not exist (no `session.md`, no `BACKLOG.md`, no PRs listed), skip that step and note the skip in the summary
 - **No network calls beyond git/gh** — use only `git`, `gh`, and file reads; no external APIs

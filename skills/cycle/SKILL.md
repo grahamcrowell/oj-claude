@@ -6,7 +6,7 @@ Execute against the backlog leveraging the team of expert agents. A single `/cyc
 
 ## Backlog 
 
-Read `.claude/BACKLOG.md` as the backlog source.
+Resolve the backlog path with `oj-helper resolve-path backlog` (fallback `.claude/BACKLOG.md` if it prints nothing) — this is the backlog source for the whole invocation. Throughout this document, **the backlog file** refers to that resolved path. Preserve item IDs exactly as written; do not assume a `BACK-` prefix (the project may use any `<PREFIX>-<N>` scheme, e.g. `L-071`).
 
 ## Loop & Stop Conditions
 
@@ -32,7 +32,7 @@ Read `.claude/CLAUDE.md` to understand project constraints. Run this ONCE at the
 
 ### Step 2 — Load Backlog (loop entry)
 
-Read `.claude/BACKLOG.md`. If empty, prompt the user for input and exit.
+Read the resolved backlog file. If empty, prompt the user for input and exit.
 
 Select the highest-priority unblocked item to start this iteration. If no unblocked items remain, stop the loop, proceed to Steps 10 and 11, and report "backlog drained".
 
@@ -128,7 +128,7 @@ Create atomic commits with clear messages scoped to THIS item. Do NOT include "C
 **Commit Verification Gate** (7a): After committing, run `git status` to confirm the working tree is clean — no uncommitted tracked changes or untracked files that should be committed. If uncommitted changes remain, stage and commit them before proceeding. Do not advance to Step 8, and do not advance the LOOP to the next item, until the working tree is clean. A dirty tree at this gate is a hard block on loop advancement.
 
 ### Step 8 — Update Backlog
-- **BACKLOG.md**: Mark THIS item complete, add any discovered work, update `.claude/BACKLOG.md`. Commit this update as part of the per-item commit boundary (Step 7) — the loop must not advance with an unstaged backlog edit.
+- **BACKLOG.md**: Mark THIS item complete, add any discovered work, update the resolved backlog file. Commit this update as part of the per-item commit boundary (Step 7) — the loop must not advance with an unstaged backlog edit.
 
 ### Step 9 — Per-Item Retrospective
 Brief retrospective on what worked and what to improve for THIS item. Keep it short (a few bullets) — full retros happen per-invocation if needed, and Complex-tier items trigger a stop (see Loop & Stop Conditions) so they get their own invocation. For Complex tier items (if one slipped through), write to `.claude/archive/retros/`.
@@ -140,7 +140,7 @@ After the loop has stopped (backlog drained or a gate tripped), run `oj-helper f
 ```
 ---
 date: YYYY-MM-DD
-items: [KEY-NNN, KEY-NNN, ...]  # or [BACK-XXX, BACK-XXX, ...]
+items: [KEY-NNN, KEY-NNN, ...]  # issue-tracker keys, or local backlog IDs exactly as written (e.g. BACK-12, L-071)
 tiers: [Simple|Moderate|Complex, ...]
 stop_reason: budget-drained | complex-next | one-way-door | user-decision | backlog-drained
 ---
@@ -154,7 +154,7 @@ stop_reason: budget-drained | complex-next | one-way-door | user-decision | back
 Fill in the actual date, the list of backlog item IDs processed during this invocation, the list of tiers in iteration order, the stop reason, and a run-level retrospective. Each `/cycle` invocation produces exactly one new feedback file.
 
 ### Step 10 — Artifacts (per invocation)
-Store any design documents, ADRs, or analysis artifacts produced during the run in `.claude/artifacts/`.
+Store any design documents, ADRs, or analysis artifacts produced during the run under the artifacts root from `oj-helper resolve-path artifacts` (fallback `.claude/artifacts/`).
 
 ### Step 11 — Notify (per invocation)
 Tell the user the cycle invocation is complete. Summarize: (a) how many items were processed and their IDs, (b) which stop condition tripped (budget / complex-next / one-way-door / user-decision / backlog-drained), (c) for `complex-next` / `one-way-door` / `user-decision` — the item it tripped on and what decision the user needs to make. Suggest `/clear` before the next invocation if context is getting large.

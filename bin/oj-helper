@@ -1180,6 +1180,107 @@ EOF
 }
 
 # ────────────────────────────────────────────────────────────────────
+# resolve-path — echo the absolute path oj should use for a canonical
+# state file/dir, honoring per-project layout and overrides.
+# ────────────────────────────────────────────────────────────────────
+# WHY: the skills (save-session, show-backlog, run-task, cycle) and the
+# CONDUCTOR templates historically hardcoded `.claude/state/session.md`,
+# `.claude/BACKLOG.md`, and `.claude/artifacts/`. A project that relocates
+# state (e.g. a canonical-state-root under `.claude/local/`) had no way to
+# redirect oj without forking every skill. resolve-path centralizes the
+# decision: a skill asks for a key, oj-helper returns the path.
+#
+# Usage:
+#   oj-helper resolve-path <key> [--workspace PATH]
+#   keys: session | backlog | artifacts | state-dir | config
+#
+# Workspace root resolution (root = the dir that contains `.claude/`):
+#   1. --workspace PATH (must exist), else
+#   2. $OJ_STATE_ROOT (set by the SessionStart hook):
+#      root = ${OJ_STATE_ROOT%/.claude/local}, else
+#   3. nearest ancestor of $PWD (incl. $PWD) containing a `.claude/` dir, else
+#   4. $PWD
+#
+# Layout:
+#   "local"  if <root>/.claude/local/ exists  (canonical-state-root projects)
+#   "legacy" otherwise                         (vanilla oj `.claude/` layout)
+#
+# Per-key override: <root>/.claude/oj-paths.env may set
+# `key=workspace-relative-path` (e.g. `session=.claude/local/state/session.md`;
+# `#` comments and surrounding whitespace allowed). An override wins over the
+# layout default for that key.
+#
+# Output: one absolute path on stdout. The path is NOT created — callers
+# decide that (resolve-path is pure resolution, safe to call before a file
+# exists). Exit 0 on success, 1 on bad key / unresolvable workspace.
+# ────────────────────────────────────────────────────────────────────
+cmd_resolve_path() {
+  local key="" explicit_workspace=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --workspace) explicit_workspace="${2:-}"; shift 2 ;;
+      --*)         die "resolve-path: unknown flag: $1" ;;
+      *)
+        if [[ -z "$key" ]]; then key="$1"; else die "resolve-path: unexpected argument: $1"; fi
+        shift
+        ;;
+    esac
+  done
+  [[ -n "$key" ]] || die "resolve-path: missing key. One of: session backlog artifacts state-dir config"
+
+  # 1. Resolve workspace root.
+  local root=""
+  if [[ -n "$explicit_workspace" ]]; then
+    [[ -d "$explicit_workspace" ]] || die "resolve-path: --workspace path does not exist: $explicit_workspace"
+    root="$(cd "$explicit_workspace" && pwd)"
+  elif [[ -n "${OJ_STATE_ROOT:-}" && "${OJ_STATE_ROOT%/.claude/local}" != "${OJ_STATE_ROOT}" && -d "${OJ_STATE_ROOT%/.claude/local}" ]]; then
+    root="$(cd "${OJ_STATE_ROOT%/.claude/local}" && pwd)"
+  else
+    local dir="$PWD"
+    while [[ "$dir" != "/" ]]; do
+      if [[ -d "$dir/.claude" ]]; then root="$dir"; break; fi
+      dir="$(dirname "$dir")"
+    done
+    [[ -n "$root" ]] || root="$PWD"
+  fi
+
+  # 2. Detect layout.
+  local layout="legacy"
+  [[ -d "$root/.claude/local" ]] && layout="local"
+
+  # 3. Per-key default (workspace-relative), by layout.
+  local rel=""
+  case "$layout:$key" in
+    local:session)    rel=".claude/local/state/session.md" ;;
+    local:backlog)    rel=".claude/local/backlog/BACKLOG.md" ;;
+    local:artifacts)  rel=".claude/local/artifacts" ;;
+    local:state-dir)  rel=".claude/local/state" ;;
+    local:config)     rel=".claude/local/config" ;;
+    legacy:session)   rel=".claude/state/session.md" ;;
+    legacy:backlog)   rel=".claude/BACKLOG.md" ;;
+    legacy:artifacts) rel=".claude/artifacts" ;;
+    legacy:state-dir) rel=".claude/state" ;;
+    legacy:config)    rel=".claude" ;;
+    *) die "resolve-path: unknown key: $key. One of: session backlog artifacts state-dir config" ;;
+  esac
+
+  # 4. Per-key override file wins (if present). `|| true` neutralizes a
+  # no-match grep under `set -o pipefail`.
+  local override_file="$root/.claude/oj-paths.env"
+  if [[ -f "$override_file" ]]; then
+    local ov=""
+    ov="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$override_file" 2>/dev/null | tail -n1 | sed -E "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*//; s/[[:space:]]*\$//")" || true
+    [[ -n "$ov" ]] && rel="$ov"
+  fi
+
+  # 5. Emit absolute path (override values may themselves be absolute).
+  case "$rel" in
+    /*) echo "$rel" ;;
+    *)  echo "$root/$rel" ;;
+  esac
+}
+
+# ────────────────────────────────────────────────────────────────────
 # Dispatcher
 # ────────────────────────────────────────────────────────────────────
 
@@ -1188,6 +1289,7 @@ case "${1:-}" in
   conductor-inject)    shift; cmd_conductor_inject "$@" ;;
   migrate-legacy)      shift; cmd_migrate_legacy "$@" ;;
   feedback-path)       shift; cmd_feedback_path "$@" ;;
+  resolve-path)        shift; cmd_resolve_path "$@" ;;
   install-hooks)       shift; cmd_install_hooks "$@" ;;
   issue-tracker-check)       shift; cmd_issue_tracker_check "$@" ;;
   issue-tracker-list)        shift; cmd_issue_tracker_list "$@" ;;
@@ -1210,6 +1312,7 @@ SUBCOMMANDS:
   conductor-inject     Inject CONDUCTOR.md at session start (SessionStart hook)
   migrate-legacy       Detect Makefile-era install and write migration sentinels
   feedback-path        Output feedback file path for dev mode (OJ_DEVMODE=1)
+  resolve-path         Echo the canonical path for a state key (session|backlog|artifacts|state-dir|config)
   install-hooks        Set core.hooksPath to .githooks in current repo (opt-in)
 
   issue-tracker-check        Validate issue tracker prerequisites and discover project
@@ -1235,6 +1338,8 @@ EXAMPLES:
   oj-helper issue-tracker-check
   oj-helper issue-tracker-list --limit 20
   oj-helper feedback-path
+  oj-helper resolve-path session
+  oj-helper resolve-path backlog --workspace ~/m/data-lake
   oj-helper workstream-new DATA-1234 my-repo
   oj-helper workstream-new feat-x my-repo my-feature-branch --workspace ~/m/data-lake
 

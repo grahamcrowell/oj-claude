@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**Provenance**: hand-cut (no juntogen regen). Scope: a path-resolution layer so skills defer to the host project's state layout, plus a delegation-boundary scope clause.
+
+**Preserved hand-cut**:
+- `bin/oj-helper` — new `resolve-path <key>` subcommand (keys: `session`, `backlog`, `artifacts`, `state-dir`, `config`). Resolves the workspace root (`--workspace` → `$OJ_STATE_ROOT` → `.claude/` walk-up → `$PWD`), auto-detects layout (`local` when `.claude/local/` exists, else `legacy`), honors per-key overrides in `<root>/.claude/oj-paths.env`, and echoes one absolute path. Pure resolution — never creates the path. Vanilla `.claude/` defaults are unchanged.
+- `skills/save-session`, `skills/show-backlog`, `skills/run-task`, `skills/cycle` — resolve `session`/`backlog`/`artifacts` paths via `resolve-path` instead of hardcoding `.claude/state/session.md`, `.claude/BACKLOG.md`, `.claude/artifacts/`; each carries a literal-path fallback. Backlog ID parsing is now prefix-agnostic (no longer assumes a `BACK-` prefix; matches any `<PREFIX>-<N>`, e.g. `L-071`).
+- `CONDUCTOR.md` — Delegation Boundary gains a **SCOPE** clause: it binds inside `/oj:cycle` / `/oj:run-task` and at Moderate/Complex tier, and explicitly does not bind free-form requests, Simple-tier work, or host projects whose `.claude/CLAUDE.md` defines a hands-on engineering workflow (project instructions take precedence). Templates table + responsibilities line reference `resolve-path`.
+- `reference/file-patterns.md` — doc-wide callout that its `.claude/...` paths are `legacy`-layout defaults and `resolve-path` is the runtime source of truth.
+
+**Not included** (deferred to release): `VERSION` / `.claude-plugin/plugin.json` bump.
+
 ## v0.0.3 — 2026-06-19
 
 **Provenance**: hand-cut (no juntogen regen). Scope limited to workstream-new workspace resolution and the embedded workstream `CLAUDE.md` template path conventions.

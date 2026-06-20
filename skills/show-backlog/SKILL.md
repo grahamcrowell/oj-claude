@@ -31,7 +31,7 @@ Decision tree:
 ### Step 2 — Load Backlog Items
 
 - **issue tracker mode**: Run `oj-helper issue-tracker-list --project PROJECT_KEY`. Parse the JSON response to extract `key`, `summary`, `status`, and `priority` for each item.
-- **BACKLOG.md mode**: Read `.claude/BACKLOG.md`. Parse the markdown structure to extract `ID`, `title`, and `status` per item, grouped by priority section (P0-P4).
+- **BACKLOG.md mode**: Resolve the backlog path with `oj-helper resolve-path backlog` (fallback `.claude/BACKLOG.md` if it prints nothing), then read it. Parse the markdown structure to extract `ID`, `title`, and `status` per item, grouped by priority section (P0-P4).
 
 ### Step 3 — Present Summary
 
@@ -44,7 +44,7 @@ Decision tree:
 
 Group items by priority. For each item, show:
 
-- **ID** — issue tracker key (e.g., `PROJ-123`) or `BACK-NNN`
+- **ID** — issue tracker key (e.g., `PROJ-123`) or the local backlog ID **exactly as written** in the file. Do not assume a `BACK-` prefix: match whatever `<PREFIX>-<N>` scheme the backlog uses (e.g. `BACK-12`, `L-071`).
 - **Title / Summary**
 - **Status** — Open, In Progress, Blocked, etc.
 

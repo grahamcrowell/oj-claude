@@ -35,7 +35,7 @@ Read `.claude/CLAUDE.md` to understand project constraints, conventions, and sta
 #### Load Backlog
 
 - **issue tracker mode**: Run `oj-helper issue-tracker-list --project PROJECT_KEY` to fetch open items as JSON. Parse to extract key, summary, status, priority.
-- **BACKLOG.md mode**: Read `.claude/BACKLOG.md` and parse the markdown structure to extract item IDs, titles, priority, and status.
+- **BACKLOG.md mode**: Resolve the backlog path with `oj-helper resolve-path backlog` (fallback `.claude/BACKLOG.md` if it prints nothing), then read it and parse the markdown structure to extract item IDs, titles, priority, and status. Preserve item IDs **exactly as written** — do not assume a `BACK-` prefix; the project may use any `<PREFIX>-<N>` scheme (e.g. `L-071`).
 
 Select the highest-priority **unblocked** item. If the backlog is empty, prompt the user for input — do not fabricate work.
 
@@ -177,10 +177,10 @@ Create atomic commits with clear, focused messages.
   - Transition to "Done": `oj-helper issue-tracker-transition KEY --status "Done"`. If it fails, note the ticket key and desired status for manual resolution and continue.
   - Add completion comment: `oj-helper issue-tracker-comment KEY --body "Completed: [summary]"`
   - Create tickets for any discovered work: `oj-helper issue-tracker-create --summary "..." --description "..."`
-- **BACKLOG.md mode**:
+- **BACKLOG.md mode** (path from `oj-helper resolve-path backlog`):
   - Mark completed items
   - Add discovered work with priority and (if applicable) "Blocked By" notes
-  - Write back to `.claude/BACKLOG.md`
+  - Write back to the resolved backlog file
 
 ### Phase 5 — Learn
 
@@ -197,7 +197,7 @@ Run `oj-helper feedback-path` in bash:
 ```markdown
 ---
 date: YYYY-MM-DD
-item: KEY-NNN or BACK-XXX
+item: KEY-NNN (issue tracker) or the local backlog ID exactly as written (e.g. BACK-12, L-071)
 tier: Simple|Moderate|Complex
 ---
 ### What Worked
@@ -212,7 +212,7 @@ Fill in the actual date, the ticket key (issue tracker mode) or backlog ID (BACK
 
 #### Artifacts
 
-Store design documents, ADRs, or analysis artifacts produced during this run-task invocation in `.claude/artifacts/`.
+Store design documents, ADRs, or analysis artifacts produced during this run-task invocation under the artifacts root from `oj-helper resolve-path artifacts` (fallback `.claude/artifacts/`).
 
 #### Notify
 
