@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.6 — 2026-06-21
+
+**Provenance**: hand-cut (no juntogen regen). Scope: a host-side skill for delegating isolated execution to a sandbox container.
+
+**Preserved hand-cut**:
+- `skills/delegate-sandbox/SKILL.md` — new `/oj:delegate-sandbox` skill. Hands one self-contained implementation task to a disposable `claude-sandbox` container worker (plain Claude Code, no oj plugin inside) via `$CLAUDE_SANDBOX_DIR/scripts/oj-worker.sh`, then has the manager review the diff on the host and land it. The worker carries the sandbox's PR guardrail (open a PR, never approve/merge/label/force-push), so merge authority stays on the host. Preserves the delegation boundary (the worker is the implementer) and pairs with `/oj:workstream-new` for per-worktree parallel isolation.
+
+**DATA artifacts**:
+- `VERSION` (0.0.5 → 0.0.6)
+- `.claude-plugin/plugin.json` (version 0.0.5 → 0.0.6)
+
 ## v0.0.5 — 2026-06-20
 
 **Provenance**: hand-cut (no juntogen regen). Scope: close the one state path the skills did not route through `resolve-path`.
