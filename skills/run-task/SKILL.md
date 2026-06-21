@@ -186,7 +186,7 @@ Create atomic commits with clear, focused messages.
 
 #### Retrospective
 
-Run a brief retrospective on what worked and what to improve. For **Complex** tier items, write a full retrospective to `.claude/archive/retros/` using the `retrospective.md` template.
+Run a brief retrospective on what worked and what to improve. For **Complex** tier items, write a full retrospective to the directory from `oj-helper resolve-path retros` (fallback `.claude/archive/retros/` if it prints nothing) using the `retrospective.md` template.
 
 #### Dev Mode Feedback
 

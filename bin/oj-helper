@@ -1192,7 +1192,7 @@ EOF
 #
 # Usage:
 #   oj-helper resolve-path <key> [--workspace PATH]
-#   keys: session | backlog | artifacts | state-dir | config
+#   keys: session | backlog | artifacts | state-dir | config | retros
 #
 # Workspace root resolution (root = the dir that contains `.claude/`):
 #   1. --workspace PATH (must exist), else
@@ -1226,7 +1226,7 @@ cmd_resolve_path() {
         ;;
     esac
   done
-  [[ -n "$key" ]] || die "resolve-path: missing key. One of: session backlog artifacts state-dir config"
+  [[ -n "$key" ]] || die "resolve-path: missing key. One of: session backlog artifacts state-dir config retros"
 
   # 1. Resolve workspace root.
   local root=""
@@ -1256,12 +1256,14 @@ cmd_resolve_path() {
     local:artifacts)  rel=".claude/local/artifacts" ;;
     local:state-dir)  rel=".claude/local/state" ;;
     local:config)     rel=".claude/local/config" ;;
+    local:retros)     rel=".claude/local/archive/retros" ;;
     legacy:session)   rel=".claude/state/session.md" ;;
     legacy:backlog)   rel=".claude/BACKLOG.md" ;;
     legacy:artifacts) rel=".claude/artifacts" ;;
     legacy:state-dir) rel=".claude/state" ;;
     legacy:config)    rel=".claude" ;;
-    *) die "resolve-path: unknown key: $key. One of: session backlog artifacts state-dir config" ;;
+    legacy:retros)    rel=".claude/archive/retros" ;;
+    *) die "resolve-path: unknown key: $key. One of: session backlog artifacts state-dir config retros" ;;
   esac
 
   # 4. Per-key override file wins (if present). `|| true` neutralizes a
@@ -1312,7 +1314,7 @@ SUBCOMMANDS:
   conductor-inject     Inject CONDUCTOR.md at session start (SessionStart hook)
   migrate-legacy       Detect Makefile-era install and write migration sentinels
   feedback-path        Output feedback file path for dev mode (OJ_DEVMODE=1)
-  resolve-path         Echo the canonical path for a state key (session|backlog|artifacts|state-dir|config)
+  resolve-path         Echo the canonical path for a state key (session|backlog|artifacts|state-dir|config|retros)
   install-hooks        Set core.hooksPath to .githooks in current repo (opt-in)
 
   issue-tracker-check        Validate issue tracker prerequisites and discover project

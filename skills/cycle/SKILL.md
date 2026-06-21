@@ -131,7 +131,7 @@ Create atomic commits with clear messages scoped to THIS item. Do NOT include "C
 - **BACKLOG.md**: Mark THIS item complete, add any discovered work, update the resolved backlog file. Commit this update as part of the per-item commit boundary (Step 7) — the loop must not advance with an unstaged backlog edit.
 
 ### Step 9 — Per-Item Retrospective
-Brief retrospective on what worked and what to improve for THIS item. Keep it short (a few bullets) — full retros happen per-invocation if needed, and Complex-tier items trigger a stop (see Loop & Stop Conditions) so they get their own invocation. For Complex tier items (if one slipped through), write to `.claude/archive/retros/`.
+Brief retrospective on what worked and what to improve for THIS item. Keep it short (a few bullets) — full retros happen per-invocation if needed, and Complex-tier items trigger a stop (see Loop & Stop Conditions) so they get their own invocation. For Complex tier items (if one slipped through), write to the directory from `oj-helper resolve-path retros` (fallback `.claude/archive/retros/` if it prints nothing).
 
 > After Step 9 for the current item: re-enter the loop at Step 2 on the next highest-priority unblocked item, UNLESS a budget/safety gate (see Loop & Stop Conditions) trips. If a gate trips, skip directly to Step 9a, then Step 10, then Step 11 (which now run ONCE per invocation, not per item).
 
