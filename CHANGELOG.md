@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.0.5 — 2026-06-20
 
 **Provenance**: hand-cut (no juntogen regen). Scope: close the one state path the skills did not route through `resolve-path`.
 
@@ -8,7 +8,9 @@
 - `bin/oj-helper` — `resolve-path` gains a `retros` key (`legacy:retros → .claude/archive/retros`, `local:retros → .claude/local/archive/retros`). Additive; existing keys and their defaults are unchanged. Honors `oj-paths.env` overrides like every other key.
 - `skills/run-task/SKILL.md`, `skills/cycle/SKILL.md` — Complex-tier retrospectives now write to `oj-helper resolve-path retros` (literal `.claude/archive/retros/` fallback) instead of hardcoding the path. This was the only state path the skills still hardcoded; consumers that relocate state (e.g. a project whose retros belong under its artifacts tree) can now redirect it.
 
-**Not included** (deferred to release): `VERSION` / `.claude-plugin/plugin.json` bump.
+**DATA artifacts**:
+- `VERSION` (0.0.4 → 0.0.5)
+- `.claude-plugin/plugin.json` (version 0.0.4 → 0.0.5)
 
 ## v0.0.4 — 2026-06-20
 
