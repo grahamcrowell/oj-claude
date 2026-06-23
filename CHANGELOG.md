@@ -1,15 +1,23 @@
 # Changelog
 
-## Unreleased
+## v0.0.8 — 2026-06-23
 
-**sandbox-cycle / delegate-sandbox:** replaced the ad-hoc inline pre-flight prose
-with a single allowlistable invocation of `scripts/sandbox-preflight.sh` (lives in
-the `claude-sandbox` repo). The script performs all readiness checks (auth, podman,
-machine state, image) and emits JSON; the skills now run exactly
-`"$CLAUDE_SANDBOX_DIR/scripts/sandbox-preflight.sh"`, stop on `.ok == false`, and
-surface `.blockers` to the user. Removes the recurring **pre-flight** permission
-prompt — allowlist once with `Bash(*/scripts/sandbox-preflight.sh)`. The per-item
-worker dispatch is separately allowlistable with `Bash(*/scripts/oj-worker.sh*)`.
+**Provenance**: hand-cut (no juntogen regen). Scope: make the sandbox skills' pre-flight allowlist-friendly so it stops prompting on every run.
+
+**Preserved hand-cut**:
+- `skills/sandbox-cycle/SKILL.md`, `skills/delegate-sandbox/SKILL.md` — replaced the
+  vague inline pre-flight prose (which made the model improvise a different compound
+  shell command each run that the permission allowlist could never match) with a
+  single fixed-name command, `"$CLAUDE_SANDBOX_DIR/scripts/sandbox-preflight.sh"`
+  (lives in the `claude-sandbox` repo). The skills run it verbatim, parse its JSON,
+  stop the loop on `.ok == false`, and surface `.blockers`. Removes the recurring
+  **pre-flight** permission prompt — allowlist once with
+  `Bash(*/scripts/sandbox-preflight.sh)`; the per-item worker dispatch is separately
+  allowlistable with `Bash(*/scripts/oj-worker.sh*)`.
+
+**DATA artifacts**:
+- `VERSION` (0.0.7 → 0.0.8)
+- `.claude-plugin/plugin.json` (version 0.0.7 → 0.0.8)
 
 ## v0.0.7 — 2026-06-21
 
