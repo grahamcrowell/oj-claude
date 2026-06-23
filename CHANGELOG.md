@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.7 — 2026-06-21
+
+**Provenance**: hand-cut (no juntogen regen). Scope: a looping cycle variant that delegates implementation to sandbox containers.
+
+**Preserved hand-cut**:
+- `skills/sandbox-cycle/SKILL.md` — new `/oj:sandbox-cycle` skill. Runs the `/oj:cycle` backlog loop verbatim but delegates each item's **Phase 2 implementation** to a disposable `claude-sandbox` container worker (via `/oj:delegate-sandbox` / `$CLAUDE_SANDBOX_DIR/scripts/oj-worker.sh`); stakeholder analysis, adversarial review, testing, commits, and retros stay on the host. Adds a triage gate that stops items needing host-only capabilities (AWS/Terraform/VPN/marqeta-git) for plain `/oj:cycle`, and keeps commit authority + the clean-tree gate on the host.
+
+**DATA artifacts**:
+- `VERSION` (0.0.6 → 0.0.7)
+- `.claude-plugin/plugin.json` (version 0.0.6 → 0.0.7)
+
 ## v0.0.6 — 2026-06-21
 
 **Provenance**: hand-cut (no juntogen regen). Scope: a host-side skill for delegating isolated execution to a sandbox container.
