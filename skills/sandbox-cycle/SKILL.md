@@ -32,9 +32,13 @@ default.)
 
 ## Prerequisites
 
-- The `claude-sandbox` repo at `$CLAUDE_SANDBOX_DIR` (provides `scripts/oj-worker.sh`
-  and builds the image on first use); ask the user if it is unset.
+- The `claude-sandbox` repo, which provides `scripts/oj-worker.sh`, `scripts/sandbox-preflight.sh`,
+  and builds the image on first use. Locate it via `$CLAUDE_SANDBOX_DIR`; see Pre-flight below.
 - A populated `.env` in that repo (Claude + `gh`/`jira` auth) and `podman` on the host.
+
+Run the single pre-flight command below before the first dispatch — it checks all of the above
+in one shot and tells you exactly what is missing. Allowlist it once with
+`Bash(*/scripts/sandbox-preflight.sh)` to suppress future permission prompts.
 
 ## Relationship to /oj:cycle
 
@@ -48,10 +52,31 @@ overrides below.
 
 ### Pre-flight (once per invocation, after Step 1)
 
-Resolve `$CLAUDE_SANDBOX_DIR`, confirm `podman` is available, and let the worker
-script build the image on first use. If the sandbox is unavailable, **stop and
-tell the user** — do not silently fall back to in-process execution; that would
-defeat the purpose of this skill.
+**Resolve `$CLAUDE_SANDBOX_DIR` first — once, at invocation start:**
+
+1. Use `$CLAUDE_SANDBOX_DIR` if set.
+2. If unset, use a path the user gave earlier this session.
+3. If still unknown, ask the user once and `export CLAUDE_SANDBOX_DIR=<path>` for
+   the remainder of this invocation — do not re-ask within the same run.
+
+**Then run exactly this command** (verbatim — no added flags or compound operators):
+
+```bash
+"$CLAUDE_SANDBOX_DIR/scripts/sandbox-preflight.sh"
+```
+
+Parse its JSON output:
+
+- If `.ok` is `false` (or exit code is non-zero): **stop immediately** and report
+  the `.blockers` array to the user. Do NOT fall back to in-process execution —
+  that would defeat the purpose of this skill.
+- If `.ok` is `true`: surface any `.warnings` (e.g. first-run image build notice)
+  and proceed. The image builds automatically on first dispatch.
+
+> **Tip:** allowlist both sandbox commands once to suppress their permission
+> prompts on future runs — `Bash(*/scripts/sandbox-preflight.sh)` for this
+> pre-flight, and `Bash(*/scripts/oj-worker.sh*)` for the per-item worker dispatch
+> in Step 5 (Execute) below.
 
 ### Triage gate (extends Step 3)
 

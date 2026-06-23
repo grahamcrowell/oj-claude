@@ -28,6 +28,8 @@ implementer; the manager coordinates and reviews.
 - A populated `.env` in that repo (Claude + `gh`/`jira` auth) — the worker loads it.
 - `podman` on the host.
 
+Verify all of the above in one shot: `"$CLAUDE_SANDBOX_DIR/scripts/sandbox-preflight.sh"`. Allowlist both sandbox commands once to suppress their permission prompts: `Bash(*/scripts/sandbox-preflight.sh)` (this check) and `Bash(*/scripts/oj-worker.sh*)` (the Step 2 dispatch).
+
 ## Protocol
 
 ### Step 1 — Gather inputs

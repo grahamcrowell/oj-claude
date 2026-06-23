@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+**sandbox-cycle / delegate-sandbox:** replaced the ad-hoc inline pre-flight prose
+with a single allowlistable invocation of `scripts/sandbox-preflight.sh` (lives in
+the `claude-sandbox` repo). The script performs all readiness checks (auth, podman,
+machine state, image) and emits JSON; the skills now run exactly
+`"$CLAUDE_SANDBOX_DIR/scripts/sandbox-preflight.sh"`, stop on `.ok == false`, and
+surface `.blockers` to the user. Removes the recurring **pre-flight** permission
+prompt — allowlist once with `Bash(*/scripts/sandbox-preflight.sh)`. The per-item
+worker dispatch is separately allowlistable with `Bash(*/scripts/oj-worker.sh*)`.
+
 ## v0.0.7 — 2026-06-21
 
 **Provenance**: hand-cut (no juntogen regen). Scope: a looping cycle variant that delegates implementation to sandbox containers.
