@@ -2,7 +2,7 @@
 
 Backlog management, project structure, and LLM-optimized file patterns for OpenJunto projects.
 
-> **Path resolution — read before treating any `.claude/...` path below as literal.** The paths in this document (`.claude/BACKLOG.md`, `.claude/state/session.md`, `.claude/artifacts/`, `.claude/backlog/detail/`) describe the **default `legacy` layout** for a vanilla project. The source of truth at runtime is `oj-helper resolve-path <key>` (keys: `session`, `backlog`, `artifacts`, `state-dir`, `config`). A project that keeps a **canonical-state-root under `.claude/local/`** (detected automatically when `.claude/local/` exists) resolves these to `.claude/local/state/session.md`, `.claude/local/backlog/BACKLOG.md`, and `.claude/local/artifacts/` instead. Per-key overrides live in `<root>/.claude/oj-paths.env`. Always resolve before reading or writing state.
+> **Path resolution — read before treating any `.claude/...` path below as literal.** The paths in this document (`.claude/BACKLOG.md`, `.claude/state/session.md`, `.claude/artifacts/`, `.claude/backlog/detail/`) are the default layout: oj state lives directly under `.claude/`. The source of truth at runtime is `oj-helper resolve-path <key>` (keys: `session`, `backlog`, `artifacts`, `state-dir`, `config`, `retros`). A project that must relocate state sets per-key overrides in `<root>/.claude/oj-paths.env` (e.g. `session=.claude/custom/session.md`); an override wins over the default. Always resolve before reading or writing state.
 
 ---
 

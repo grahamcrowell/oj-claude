@@ -20,7 +20,7 @@ oj-helper resolve-path session   # → <session-file>
 oj-helper resolve-path backlog   # → <backlog-file>
 ```
 
-Throughout this document, `<session-file>` and `<backlog-file>` refer to those resolved absolute paths. This lets a project relocate state (e.g. a canonical-state-root under `.claude/local/`) without forking the skill. **Fallback:** if `oj-helper` is unavailable or prints nothing, default to `<session-file>` and `.claude/BACKLOG.md`.
+Throughout this document, `<session-file>` and `<backlog-file>` refer to those resolved absolute paths. This lets a project relocate state (via per-key overrides in `.claude/oj-paths.env`) without forking the skill. **Fallback:** if `oj-helper` is unavailable or prints nothing, default to `<session-file>` and `.claude/BACKLOG.md`.
 
 ### Step 1 — Read Current State
 

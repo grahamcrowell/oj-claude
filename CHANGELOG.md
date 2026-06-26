@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.9 — 2026-06-25
+
+**Provenance**: hand-cut (no juntogen regen). Scope: drop the auto-detected `.claude/local/` canonical-state-root layout from `resolve-path` so it never points at nonexistent `local/` paths.
+
+**Preserved hand-cut**:
+- `bin/oj-helper` — `resolve-path` no longer probes for `.claude/local/`. The all-or-nothing local-vs-legacy layout switch is removed; oj state is always the layout directly under `.claude/` (`.claude/state/session.md`, `.claude/BACKLOG.md`, `.claude/artifacts`, `.claude/state`, `.claude`, `.claude/archive/retros`). A project that must relocate state still does so per-key via `.claude/oj-paths.env`, which wins over the default. `$OJ_STATE_ROOT` now means the workspace root directly, tolerating a trailing `/.claude/local` or `/.claude` suffix for hooks written against older releases.
+- `bin/oj-helper` — `workstream-new` (`_workstream_resolve_workspace`, `_workstream_link_all`, the generated per-workstream `.claude/CLAUDE.md`) migrated off `.claude/local/...`: the workspace marker is now `.claude/state/session.md`, and the shared symlinks are `state/session.md`, `BACKLOG.md`, and `artifacts` directly under `.claude/` — matching what every skill now resolves.
+- `reference/file-patterns.md`, `skills/workstream-new/SKILL.md`, `skills/save-session/SKILL.md`, `juntogen/claude/step-01-workstream-new.md` — describe the single `.claude/` layout (relocate via `oj-paths.env`) instead of the removed `.claude/local/` canonical-state-root.
+- `scripts/tests/oj-helper-hook-test.sh` — S15 workstream fixtures and assertions use the legacy `.claude/state/session.md` marker. Full suite: 64/64.
+
+**DATA artifacts**:
+- `VERSION` (0.0.8 → 0.0.9)
+- `.claude-plugin/plugin.json` (version 0.0.8 → 0.0.9)
+
 ## v0.0.8 — 2026-06-23
 
 **Provenance**: hand-cut (no juntogen regen). Scope: make the sandbox skills' pre-flight allowlist-friendly so it stops prompting on every run.
