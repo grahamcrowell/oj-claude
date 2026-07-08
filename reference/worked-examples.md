@@ -92,7 +92,7 @@ Delegated to a Software Engineer agent for implementation.
 
 ### Phase 1: Parallel Stakeholder Analysis
 
-**Security spawn prompt** (Task tool, model: sonnet):
+**Security spawn prompt** (Task tool, model: opus[1m]):
 
 ```
 <!-- oj-expert: senior-security-engineer -->
@@ -103,7 +103,7 @@ behavior on limit (429 vs silent drop vs tarpit), and how to avoid blocking legi
 shared NAT. Do NOT implement — analysis only.
 ```
 
-**DevOps spawn prompt** (Task tool, model: sonnet):
+**DevOps spawn prompt** (Task tool, model: opus[1m]):
 
 ```
 <!-- oj-expert: senior-devops-engineer -->
@@ -142,7 +142,7 @@ The TENSION is forwarded to the implementer as a design constraint, not resolved
 
 ### Phase 2: Lead Implementation
 
-**Implementer spawn prompt** (Task tool, model: sonnet):
+**Implementer spawn prompt** (Task tool, model: opus[1m]):
 
 ```
 <!-- oj-expert: senior-software-engineer -->
@@ -168,7 +168,7 @@ Complete a pre-mortem (≥2 failure scenarios) before producing the work product
 
 ### Phase 3: Adversarial Review
 
-**Reviewer spawn prompt** (Task tool, model: opus):
+**Reviewer spawn prompt** (Task tool, model: fable):
 
 ```
 <!-- oj-expert: senior-security-engineer -->

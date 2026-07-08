@@ -107,7 +107,7 @@ sandbox worker:**
    (bind mount). Read `.result` for the summary. **Non-zero exit → stop the loop
    and surface; never commit a failed worker run.**
 3. Treat the worker's output as an **untrusted proposal**. Phase 3 adversarial
-   review (host, model `opus` per CONDUCTOR.md) inspects the resulting
+   review (host, model `fable` per CONDUCTOR.md) inspects the resulting
    `git -C "$REPO" diff`, not the worker's self-report.
 
 For **Simple** tier, delegate the single implementation step to the worker the

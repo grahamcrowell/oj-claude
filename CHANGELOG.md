@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.0.10 — 2026-07-08
+
+**Provenance**: hand-cut (no juntogen regen). Scope: retire the haiku/sonnet/opus three-tier model roster in favor of a two-tier fable / opus[1m] roster, all spawns targeting `xhigh` effort.
+
+**Preserved hand-cut**:
+- `CONDUCTOR.md` § Model Selection — `opus` → `fable`; `sonnet` and `haiku` → `opus[1m]`. Tier table collapses to two rows: **opus[1m]** (implementation — absorbs the former routine and implementation tiers, cost ratio 1.0× baseline) and **fable** (reasoning, 2.0×). Function rules updated: adversarial reviewer slot and Complex-tier lead → `fable`; Moderate lead, Phase-1 analysts, deputy coordinator, and domain-trigger specialists → `opus[1m]`, escalating to `fable` on the same conditions as before. Per-role default table merged to two rows (the Technical Writer haiku default and its sonnet-escalation clause are gone — everything non-fable is `opus[1m]`). § Effort rewritten: target effort for all spawns is **`xhigh`**, applied session-level (per-spawn effort still isn't exposed by the Task tool).
+- `platform-defaults.yaml` — models list replaced: `fable` / `claude-fable-5` and `opus[1m]` / `claude-opus-4-8[1m]` (1M context, 128K output each, `effort: "xhigh"`); cost_ratio rebaselined to opus[1m] = 1.0 (Opus 4.8 $5/MTok input vs Fable 5 $10/MTok). Header MODEL IDs note and description updated; file version 1.0.0 → 2.0.0.
+- `skills/cycle/SKILL.md`, `skills/run-task/SKILL.md` — terse function-rule callouts (Moderate and Complex branches) updated to the new roster + xhigh note.
+- `skills/sandbox-cycle/SKILL.md`, `skills/delegate-sandbox/SKILL.md` — host adversarial review model `opus` → `fable`.
+- `reference/worked-examples.md` — Example 2 spawn prompts: analysts/implementer `model: sonnet` → `model: opus[1m]`; reviewer `model: opus` → `model: fable`.
+
+**DATA artifacts**:
+- `VERSION` (0.0.9 → 0.0.10)
+- `.claude-plugin/plugin.json` (version 0.0.9 → 0.0.10)
+
 ## v0.0.9 — 2026-06-25
 
 **Provenance**: hand-cut (no juntogen regen). Scope: drop the auto-detected `.claude/local/` canonical-state-root layout from `resolve-path` so it never points at nonexistent `local/` paths.

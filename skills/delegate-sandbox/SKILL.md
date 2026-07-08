@@ -70,7 +70,7 @@ git -C "$REPO" diff
 ```
 
 For **Moderate/Complex** tasks, spawn an adversarial reviewer via the Task tool
-(model `opus` per CONDUCTOR.md § Model Selection): find the single most important
+(model `fable` per CONDUCTOR.md § Model Selection): find the single most important
 problem and test documented failure modes.
 
 ### Step 4 — Land it
