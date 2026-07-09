@@ -12,15 +12,17 @@
 # (D08–D80). See M16-derivation-architecture.md §3 for the mapping note.
 #
 # MODEL IDs: api_id strings are the values Claude Code accepts for the model
-# parameter / settings.json. `claude-opus-4-8[1m]` is the 1M-context alias form
-# of claude-opus-4-8 (short alias: `opus[1m]`); `claude-fable-5` is Anthropic's
-# canonical identifier for Claude Fable 5 (short alias: `fable`).
+# parameter / settings.json. `claude-sonnet-5` is Anthropic's canonical
+# identifier for Claude Sonnet 5 (short alias: `sonnet`); `claude-opus-4-8[1m]`
+# is the 1M-context alias form of claude-opus-4-8 (short alias: `opus[1m]`);
+# `claude-fable-5` is Anthropic's canonical identifier for Claude Fable 5
+# (short alias: `fable`).
 #
 # See: M16-derivation-architecture.md §3 for schema definition and field semantics.
 
-version: "2.0.0"
+version: "2.1.0"
 version_date: "2026-07-08"
-description: "Claude Code platform defaults — claude-fable-5 / claude-opus-4-8[1m] generation, xhigh effort"
+description: "Claude Code platform defaults — claude-fable-5 / claude-opus-4-8[1m] / claude-sonnet-5 generation, high effort"
 
 platform:
   tools:
@@ -123,23 +125,31 @@ platform:
     # Symbolic id: used in derivation chains and human-readable references
     # api_id: actual string for Claude Code model parameter and settings.json
     # cost_ratio: relative input token cost, opus[1m] = 1.0 baseline
-    #   (Opus 4.8 $5/MTok input vs Fable 5 $10/MTok input)
+    #   (Sonnet 5 $3/MTok, Opus 4.8 $5/MTok, Fable 5 $10/MTok input;
+    #    Sonnet 5 intro pricing $2/MTok through 2026-08-31)
     # effort: target effort for spawns on this model (applied session-level;
     #   the Task tool exposes no per-spawn effort knob — see CONDUCTOR.md § Effort)
+    - id: "sonnet"
+      api_id: "claude-sonnet-5"
+      tier: "routine"                 # stakeholder analysis, compact lenses, mechanical checks
+      context_window: 1000000
+      max_output_tokens: 128000
+      cost_ratio: 0.6
+      effort: "high"
     - id: "opus[1m]"
       api_id: "claude-opus-4-8[1m]"   # Claude Code 1M-context alias of claude-opus-4-8
-      tier: "implementation"          # absorbs the former routine (haiku) and implementation (sonnet) tiers
+      tier: "implementation"
       context_window: 1000000
       max_output_tokens: 128000
       cost_ratio: 1.0
-      effort: "xhigh"
+      effort: "high"
     - id: "fable"
       api_id: "claude-fable-5"
       tier: "reasoning"
       context_window: 1000000
       max_output_tokens: 128000
       cost_ratio: 2.0
-      effort: "xhigh"
+      effort: "high"
 
   hooks:
     - point: "SubagentStart"

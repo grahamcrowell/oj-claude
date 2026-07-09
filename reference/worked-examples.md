@@ -92,7 +92,7 @@ Delegated to a Software Engineer agent for implementation.
 
 ### Phase 1: Parallel Stakeholder Analysis
 
-**Security spawn prompt** (Task tool, model: opus[1m]):
+**Security spawn prompt** (Task tool, model: sonnet):
 
 ```
 <!-- oj-expert: senior-security-engineer -->
@@ -103,7 +103,7 @@ behavior on limit (429 vs silent drop vs tarpit), and how to avoid blocking legi
 shared NAT. Do NOT implement — analysis only.
 ```
 
-**DevOps spawn prompt** (Task tool, model: opus[1m]):
+**DevOps spawn prompt** (Task tool, model: sonnet):
 
 ```
 <!-- oj-expert: senior-devops-engineer -->

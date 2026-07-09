@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.11 — 2026-07-08
+
+**Provenance**: hand-cut (no juntogen regen). Scope: quota-burn correction to the v0.0.10 roster. The two-tier fable / opus[1m] roster at all-xhigh effort, combined with a wide research fan-out, exhausted a 5-hour usage window on 2026-07-08 (~50-subagent `/oj:cycle`, ~72% of the day's cost-weighted usage on fable). Restore a cheap analysis tier, drop the default effort to `high`, and cap research fan-outs.
+
+**Preserved hand-cut**:
+- `platform-defaults.yaml` — third tier restored: `sonnet` / `claude-sonnet-5` (tier: routine — stakeholder analysis, compact lenses, mechanical checks; cost_ratio 0.6, i.e. Sonnet 5 $3/MTok vs Opus 4.8 $5/MTok, intro $2/MTok through 2026-08-31). All three models' `effort` field `xhigh` → `high`. Header MODEL IDs note and description updated; file version 2.0.0 → 2.1.0.
+- `CONDUCTOR.md` § Model Selection — three-row model table (sonnet 0.6× / opus[1m] 1.0× / fable 2.0×); "when in doubt" ladder now sonnet < opus[1m] < fable; intro notes that inheriting `fable` is the expensive failure mode. Function rules: Phase-1 stakeholder analysts and bounded/compact lenses → `sonnet` (their output is compressed to FINDING/TENSION — a stronger tier is not load-bearing); Moderate lead, deputy coordinator, and domain-trigger specialists stay `opus[1m]` with the same `fable` escalations; adversarial reviewer slot and Complex-tier lead stay `fable`. Per-role default table regains a sonnet row (Business Analyst, Product Manager, Executive Leadership Coach, Technical Writer). New § Fan-Out Budget: research/explain cycles prefer Simple-tier inline rotation or ≤ ~10 parallel spawns; wide fan-outs are Complex-tier-only. § Effort rewritten: sessions run at **`high`** (near-ceiling accuracy at materially lower thinking spend/latency on the current model generation); `xhigh` is the Complex-tier escalation, not the default.
+- `skills/cycle/SKILL.md`, `skills/run-task/SKILL.md` — terse function-rule callouts (Moderate and Complex branches): analysts → `sonnet`; effort note now "sessions run at `high`" (Moderate) / "Complex-tier sessions escalate to `xhigh`" (Complex).
+- `reference/worked-examples.md` — Example 2 stakeholder-analyst spawn prompts `model: opus[1m]` → `model: sonnet`; implementer stays `opus[1m]`, reviewer stays `fable`.
+
+**DATA artifacts**:
+- `VERSION` (0.0.10 → 0.0.11)
+- `.claude-plugin/plugin.json` (version 0.0.10 → 0.0.11)
+
 ## v0.0.10 — 2026-07-08
 
 **Provenance**: hand-cut (no juntogen regen). Scope: retire the haiku/sonnet/opus three-tier model roster in favor of a two-tier fable / opus[1m] roster, all spawns targeting `xhigh` effort.
