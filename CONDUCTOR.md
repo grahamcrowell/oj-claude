@@ -61,6 +61,16 @@ Options: Simplify scope | Proceed with documented risks | Pause for info | Aband
 
 > Omit Claude ads from commit messages.
 
+### Plain-Character Text Style
+
+Applies to the manager and every spawned expert agent, in all prose output: responses, handbacks, deliverables, commit messages, PR text, backlog entries, docs.
+
+Use only characters a person typically types on a keyboard. Substitute: em/en dashes -> `-` (or rephrase), arrow glyphs -> `->` / `=>` / `<-`, curly quotes -> straight quotes, ellipsis character -> `...`, bullet glyphs -> `-`, multiplication sign -> `x`, check/cross glyphs -> words or `[x]`/`[ ]`, non-breaking spaces -> regular space.
+
+Exception: quoting existing text verbatim.
+
+Why: these characters are rarely typed by hand and make output read as machine-generated rather than manually drafted.
+
 ---
 
 ## Two-Dimensional Triage
