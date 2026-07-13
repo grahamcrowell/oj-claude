@@ -20,7 +20,17 @@ fi
 # shellcheck source=lib/contracts.sh
 source "${_OJ_SCRIPT_DIR}/lib/contracts.sh"
 
-AGENTS_DIR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}/agents"
+# Base path for the plugin tree. inject-profile resolves three distinct
+# locations under this root:
+#   - shared preamble:  ${PLUGIN_BASE}/reference/expert-preamble.md
+#   - full profile:     ${PLUGIN_BASE}/agents/<name>.md
+#   - compact fallback: ${PLUGIN_BASE}/reference/compact/<name>.md
+# NOTE: the full profiles are the ONLY files under agents/. The preamble,
+# index, and compact profiles were relocated under reference/. AGENTS_DIR
+# still points at agents/ (full profiles); the preamble and compact paths
+# are derived from PLUGIN_BASE, NOT from AGENTS_DIR.
+PLUGIN_BASE="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}"
+AGENTS_DIR="${PLUGIN_BASE}/agents"
 
 debug() {
   if [[ "${OJ_HOOK_DEBUG:-${JUNTO_HOOK_DEBUG:-0}}" == "1" ]]; then
@@ -171,10 +181,17 @@ cmd_inject_profile() {
     exit 0
   fi
 
-  # Read profile files
-  local preamble_file="$AGENTS_DIR/_preamble.md"
+  # Read profile files. Paths derived from PLUGIN_BASE: the preamble and
+  # compact profiles were relocated out of agents/ into reference/ (Item 5).
+  #   - preamble: reference/expert-preamble.md (NOT agents/_preamble.md)
+  #   - full:     agents/<name>.md
+  #   - compact:  reference/compact/<name>.md
+  # BUG FIX: earlier drafts read a nested compact dir under the agents
+  # tree, which never exists (compact profiles live under reference/compact/),
+  # so the compact fallback silently failed and no profile was injected.
+  local preamble_file="$PLUGIN_BASE/reference/expert-preamble.md"
   local profile_file="$AGENTS_DIR/${profile_name}.md"
-  local compact_file="$AGENTS_DIR/compact/${profile_name}.md"
+  local compact_file="$PLUGIN_BASE/reference/compact/${profile_name}.md"
 
   # Build the context string from available files
   local context=""
@@ -184,14 +201,30 @@ cmd_inject_profile() {
     context+=$'\n\n---\n\n'
   fi
 
+  # _oj_strip_frontmatter — echo file content with a leading YAML frontmatter
+  # block removed. Only strips a block that starts on line 1 (first non-empty
+  # line is `---`): drops everything through the matching closing `---` line
+  # and any single blank line immediately after. A file that does not start
+  # with `---` (e.g. a compact profile, which carries no frontmatter) is
+  # emitted unchanged. Horizontal rules (`---`) later in the body survive.
   if [[ -f "$profile_file" ]]; then
-    context+=$(cat "$profile_file")
+    # Full profile carries a two-field (name/description) frontmatter block
+    # emitted for registration hygiene; strip it before injection so the
+    # injected context is prose only.
+    context+=$(awk '
+      NR==1 && $0=="---" { infm=1; next }
+      infm==1 && $0=="---" { infm=2; next }
+      infm==2 && $0=="" { infm=3; next }
+      infm==1 { next }
+      { infm=(infm==2?3:infm); print }
+    ' "$profile_file")
     debug "loaded full profile: $profile_file"
+    debug "stripped YAML frontmatter from full profile '$profile_name'"
   elif [[ -f "$compact_file" ]]; then
     context+=$(cat "$compact_file")
     debug "loaded compact profile (full not found): $compact_file"
   else
-    debug "no profile found for '$profile_name' (checked full and compact)"
+    debug "no profile found for '$profile_name' (checked full agents/ and reference/compact/)"
     exit 0
   fi
 

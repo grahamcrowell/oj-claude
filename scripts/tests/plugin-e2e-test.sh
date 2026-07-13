@@ -288,12 +288,12 @@ scenario_t2_inject_profile_composition() {
     # up as a clear preflight failure instead of a confusing concat
     # mismatch downstream.
     local profile="senior-distinguished-engineer"
-    local preamble_path="${PLUGIN_DIR}/agents/_preamble.md"
+    local preamble_path="${PLUGIN_DIR}/reference/expert-preamble.md"
     local profile_path="${PLUGIN_DIR}/agents/${profile}.md"
     if [[ -r "${preamble_path}" && -r "${profile_path}" ]]; then
-        assert_one "T2 preflight: _preamble.md + ${profile}.md present in isolated agents/" "ok"
+        assert_one "T2 preflight: expert-preamble.md + ${profile}.md present (reference/ + agents/)" "ok"
     else
-        assert_one "T2 preflight: _preamble.md + ${profile}.md present in isolated agents/" "fail" "preamble=${preamble_path} profile=${profile_path}"
+        assert_one "T2 preflight: expert-preamble.md + ${profile}.md present (reference/ + agents/)" "fail" "preamble=${preamble_path} profile=${profile_path}"
         rm -rf "${TD}"; trap - EXIT; return
     fi
 

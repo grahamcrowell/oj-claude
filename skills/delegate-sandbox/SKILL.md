@@ -1,5 +1,6 @@
 ---
 description: Delegate one self-contained implementation task to an isolated, disposable sandbox container (plain Claude Code), then review the result on the host
+disable-model-invocation: true
 ---
 
 # /oj:delegate-sandbox

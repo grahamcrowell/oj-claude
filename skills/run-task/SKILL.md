@@ -1,12 +1,13 @@
 ---
 description: Execute a single backlog item end-to-end through the 5-phase task lifecycle
+disable-model-invocation: true
 ---
 
 # /run-task
 
 Execute one backlog item end-to-end through the OpenJunto 5-phase task lifecycle: Discover, Triage, Execute, Deliver, Learn. The manager coordinates expert agents per the delegation boundary; this command does not relax that constraint.
 
-> Cross-reference: `.claude/CLAUDE.md` for triage criteria, execution models, and quality gates.
+> Cross-reference: `${CLAUDE_PLUGIN_ROOT}/CONDUCTOR.md` for triage criteria and the tier overview; `${CLAUDE_PLUGIN_ROOT}/reference/execution-protocol.md` for execution models, handback protocol, and quality gates.
 > Cross-reference: `${CLAUDE_PLUGIN_ROOT}/reference/workflow-stages.md` and `${CLAUDE_PLUGIN_ROOT}/reference/stakeholder-guide.md` for stage-specific protocols.
 
 ## Protocol
@@ -52,7 +53,9 @@ Score against the 4-criterion checklist:
 3. Could impact production stability?
 4. Significant cost or resource commitment?
 
-**Scoring**: 0-1 = Simple, 2-3 = Moderate, 4 = Complex.
+**Scoring**: Trivial (tier 0) = typo-scale, no design choices, causal chain terminates before production; 0-1 = Simple, 2-3 = Moderate, 4 = Complex.
+
+**Trivial fast-path (tier 0)**: A request is Trivial when it is typo-scale, involves NO design choices, AND its causal chain terminates before production. A Trivial item carries ZERO mandatory stakeholders — the manager executes it inline without spawning the Product + Distinguished pair. The mandatory Product Manager + Distinguished Engineer pair applies at Simple and above. If any design choice or production-reaching consequence surfaces, re-triage to at least Simple.
 
 **Mandatory escalation to Complex** (overrides score):
 - Security vulnerability or architectural change
@@ -62,7 +65,7 @@ Score against the 4-criterion checklist:
 
 #### B. Stakeholder Identification
 
-**Mandatory pair** (all tiers): Product + Tech.
+**Mandatory pair** (Simple and above): Product + Tech. (Trivial tier carries zero mandatory stakeholders.)
 
 **Domain signals**:
 
@@ -103,7 +106,7 @@ If the user overrides the recommendation, use their selection.
 Before spawning any agents, declare the engagement plan:
 
 1. Identify stakeholders from Phase 2B
-2. Map each stakeholder to an agent profile using `${CLAUDE_PLUGIN_ROOT}/agents/index.md` and `${CLAUDE_PLUGIN_ROOT}/reference/stakeholder-guide.md`
+2. Map each stakeholder to an agent profile using `${CLAUDE_PLUGIN_ROOT}/reference/expert-index.md` and `${CLAUDE_PLUGIN_ROOT}/reference/stakeholder-guide.md`
 3. Choose the plan for the selected execution model:
    - **Simple**: Manager applies perspectives inline using compact profiles (no agent spawns)
    - **Moderate**: Three-phase Task tool flow (parallel stakeholder analysis → lead implementation → adversarial review)
@@ -129,9 +132,9 @@ All three phases are mandatory.
 
 - **Phase 1 — Stakeholder Analysis**: Spawn stakeholder agents in parallel via the Task tool. Analysis only; no implementation.
 - **Phase 2 — Lead Implementation**: Synthesize Phase 1 findings, brief the lead expert with the synthesis, lead produces the deliverable.
-- **Phase 3 — Adversarial Review**: Spawn a reviewer with the Adversarial Review Protocol — find the single most important problem, test documented failure modes.
+- **Phase 3 — Adversarial Review**: Spawn a reviewer with the Adversarial Review Protocol. The reviewer flags ONLY correctness/requirements-affecting gaps — not stylistic or preferential concerns; "no material concerns" is an acceptable outcome at all tiers (do NOT force the reviewer to manufacture an objection). The mandatory **FAILURE MODES TESTED** section is retained regardless of verdict. See `${CLAUDE_PLUGIN_ROOT}/reference/workflow-stages.md` for the full review output format.
 
-> **Set `model` on every Task spawn per CONDUCTOR.md § Model Selection.** Function rules (terse): Phase-1 analysts → `sonnet`; Phase-2 Moderate lead → `opus[1m]` (escalate to `fable` for high-risk implementations or unresolved TENSION); Phase-3 adversarial reviewer → **always `fable`** regardless of the reviewer role's default. Sessions run at `high` effort (session-level — CONDUCTOR.md § Effort; `xhigh` is Complex-tier only). Per-role default fallback table is in CONDUCTOR.md § Model Selection — do not duplicate it here.
+> **Set `model` on every Task spawn per `${CLAUDE_PLUGIN_ROOT}/reference/execution-protocol.md` § Agent Spawning + Model Selection.** Function rules (terse): Phase-1 analysts → `sonnet`; Phase-2 Moderate lead → `opus[1m]` (escalate to `fable` for high-risk implementations or unresolved TENSION); Phase-3 adversarial reviewer → **always `fable`** regardless of the reviewer role's default. Sessions run at `high` effort (session-level — execution-protocol.md § Effort; `xhigh` is Complex-tier only). Per-role default fallback table is in `${CLAUDE_PLUGIN_ROOT}/reference/execution-protocol.md` § Agent Spawning + Model Selection — do not duplicate it here.
 
 #### Execute — Complex (Parallel Team / Swarm)
 
@@ -155,7 +158,7 @@ After tier classification confirms Complex, run `oj-helper agent-teams-check` an
 
 *Runtime backstop (the probe is a hint, not a guarantee)*: `agent-teams-check` only inspects the env var; an environment where the var is set but `TeamCreate` is actually disabled at runtime (enterprise policy, future flag retirement) will steer this skill onto the team branch incorrectly. If the team branch is taken and the first `TeamCreate` call — or any agent-teams-gated tool (`TeamCreate`, `TeamDelete`, `SendMessage`, `shutdown_request`) — raises "Unknown tool" / "tool unavailable" at runtime, do NOT abort the task. Fall through to the deputy-coordinator parallel-Task-tool fan-out above (handback-only synthesis, no Inform). The runtime signal is authoritative over the probe; the User Checkpoint promised at triage MUST still fire before Phase 4.
 
-> **Set `model` on every Task spawn per CONDUCTOR.md § Model Selection.** Function rules (terse): Complex-tier lead implementer → **`fable`**; adversarial reviewer slot → **always `fable`** regardless of the reviewer role's default; deputy coordinator → `opus[1m]` (escalate to `fable` if it carries the synthesis weight); stakeholder analysts → `sonnet`; specialists on a domain trigger → `opus[1m]`, escalate to `fable` when their domain is the decisive risk (Security on auth/crypto, SRE on SLO-impacting change, Data Architect on destructive migration). Complex-tier sessions escalate to `xhigh` effort (session-level — CONDUCTOR.md § Effort). Per-role default fallback table is in CONDUCTOR.md § Model Selection.
+> **Set `model` on every Task spawn per `${CLAUDE_PLUGIN_ROOT}/reference/execution-protocol.md` § Agent Spawning + Model Selection.** Function rules (terse): Complex-tier lead implementer → **`fable`**; adversarial reviewer slot → **always `fable`** regardless of the reviewer role's default; deputy coordinator → `opus[1m]` (escalate to `fable` if it carries the synthesis weight); stakeholder analysts → `sonnet`; specialists on a domain trigger → `opus[1m]`, escalate to `fable` when their domain is the decisive risk (Security on auth/crypto, SRE on SLO-impacting change, Data Architect on destructive migration). The Complex adversarial reviewer flags ONLY correctness/requirements-affecting gaps; "no material concerns" is acceptable at all tiers, and the FAILURE MODES TESTED section is retained regardless of verdict. Complex-tier sessions escalate to `xhigh` effort (session-level — execution-protocol.md § Effort). Per-role default fallback table is in `${CLAUDE_PLUGIN_ROOT}/reference/execution-protocol.md` § Agent Spawning + Model Selection.
 
 ### Phase 4 — Deliver
 

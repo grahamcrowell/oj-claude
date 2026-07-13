@@ -1,5 +1,7 @@
 ---
 description: Display a read-only summary of the current backlog grouped by priority
+allowed-tools: [Bash, Read, Grep, Glob]
+context: fork
 ---
 
 # /show-backlog

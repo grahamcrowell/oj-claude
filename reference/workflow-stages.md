@@ -13,7 +13,7 @@ Tactical execution detail for the three OpenJunto tiers: the workflow stages, th
 | Stage | Activity | Weight |
 |-------|----------|--------|
 | 1. Intake | Triage the request. Confirm Simple tier and the identified stakeholder set with the user. | Light |
-| 2. Load Perspectives | Read compact profiles from `${CLAUDE_PLUGIN_ROOT}/agents/` (flat `-compact.md` suffix) for each identified stakeholder. | Light |
+| 2. Load Perspectives | Read compact profiles from `${CLAUDE_PLUGIN_ROOT}/reference/compact/<name>.md` for each identified stakeholder. | Light |
 | 3. Perspective Rotation | Manager applies each stakeholder lens inline. Produce one PERSPECTIVE block per stakeholder. | Medium |
 | 4. Synthesize + Execute | Merge perspectives into unified action. Delegate any code changes to a single implementer. | Medium |
 | 5. Verify | Confirm output exists, looks correct, differs from baseline. Close Quality Gates (2 items). | Light |
@@ -114,16 +114,20 @@ LLM agents default to coherent affirmation. The adversarial reviewer exists to b
 ```
 <!-- oj-expert: [reviewer-profile] -->
 You are a [Reviewer Role].
-**TASK**: Adversarial review of [deliverable]. Find the single most important problem.
+**TASK**: Adversarial review of [deliverable]. Find the single most important correctness- or requirements-affecting problem.
 Test these failure modes: [list, including any TENSION items from the synthesis gate].
-Do NOT validate the work. Find what is weakest.
+Ignore stylistic and preferential concerns. If you find no material problem, explain specifically why this work is resistant to the failure modes you tested.
 ```
+
+**Scope of review**: The reviewer flags ONLY gaps that affect **correctness** or **requirements** — behavior that is wrong, unsafe, or that fails to meet a stated requirement. Stylistic or preferential concerns (naming taste, formatting, alternative-but-equivalent approaches) are OUT of scope and must NOT be raised as review findings.
+
+**"No material concerns" is an acceptable outcome at ALL tiers**: When the reviewer tests specific failure modes and finds no correctness- or requirements-affecting gap, the correct verdict is "None — resistant because [specific reasoning]", not a manufactured problem. This applies at Simple, Moderate, and Complex alike. It does NOT remove the obligation to run the review or to populate the FAILURE MODES TESTED section — the reviewer still runs and still documents what was probed.
 
 ### Reviewer Responsibilities
 
-1. Test each named failure mode explicitly; report the result of each test.
-2. Identify the **#1 problem** — the single most important issue. Stack-ranked, not enumerated.
-3. If no material concerns exist, **explain the absence**: what was tested, why each test passed. Bare "no concerns" is rejected.
+1. Test each named failure mode explicitly; report the result of each test. Confine findings to correctness- and requirements-affecting gaps; do not raise stylistic or preferential concerns.
+2. Identify the **#1 problem** — the single most important material issue. Stack-ranked, not enumerated.
+3. If no material concerns exist, **explain the absence**: what was tested, why each test passed. "No material concerns" is a valid, acceptable outcome at all tiers — bare "no concerns" without this specificity is rejected, but a specific, well-supported finding of no material concerns is complete and correct.
 
 ### Output Format
 

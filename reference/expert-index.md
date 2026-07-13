@@ -71,7 +71,7 @@ Map the dominant problem type to its primary expert, then add the suggested supp
 
 | Tier | How Stakeholders Engage | Profile Format | Output Format |
 |---|---|---|---|
-| **Simple** | Manager applies lenses inline (no sub-agent spawn) | Compact profiles (`agents/compact/`) | PERSPECTIVE blocks (1 per stakeholder), then synthesis |
+| **Simple** | Manager applies lenses inline (no sub-agent spawn) | Compact profiles (`${CLAUDE_PLUGIN_ROOT}/reference/compact/`) | PERSPECTIVE blocks (1 per stakeholder), then synthesis |
 | **Moderate** | Stakeholders spawned via Task tool in parallel; implementer then adversarial reviewer | Full profiles (hook-injected) | 9-field handbacks (includes STRONGEST OBJECTION + FALSIFIER) |
 | **Complex** | Coordinator + stakeholders run as a parallel team (swarm) | Full profiles (hook-injected) | 9-field handbacks, plus retrospective and steelmanned alternatives |
 
@@ -81,7 +81,7 @@ See `${CLAUDE_PLUGIN_ROOT}/reference/stakeholder-guide.md` for stakeholder ident
 
 ## 5. Profile Structure
 
-Every full expert profile follows the same 16-section template. The structure is defined in detail in `_preamble.md` and is summarized here for reference.
+Every full expert profile follows the same 16-section template. The structure is defined in detail in `${CLAUDE_PLUGIN_ROOT}/reference/expert-preamble.md` and is summarized here for reference.
 
 1. Role Identity
 2. Core Expertise
@@ -104,7 +104,7 @@ Every full expert profile follows the same 16-section template. The structure is
 
 ## 6. Compact Profiles
 
-Compact profiles live in `agents/compact/` (one file per stakeholder, same basename as the full profile). They exist solely for the Simple tier inline perspective rotation, where the manager applies lenses directly without spawning sub-agents.
+Compact profiles live in `${CLAUDE_PLUGIN_ROOT}/reference/compact/` (one file per stakeholder, same basename as the full profile). They exist solely for the Simple tier inline perspective rotation, where the manager applies lenses directly without spawning sub-agents.
 
 **Rationale — token optimization for Simple tier:**
 - Roughly **80% size reduction** (~2KB vs. ~10KB for the full profile)
@@ -137,4 +137,4 @@ Do **not** update profiles for:
 - Stakeholder preferences that already follow from the profile's existing guidance
 - Style edits to the prose of an individual profile (those go in the profile file itself, not this index)
 
-When adding a new stakeholder, ensure both a full profile (`agents/<name>.md`) and a compact profile (`agents/compact/<name>.md`) exist, and that the Expert Selection Guide places the new stakeholder as a primary expert for at least one problem type and as a cross-cutting reviewer for at least one other (to avoid same-domain echo chambers).
+When adding a new stakeholder, ensure both a full profile (`${CLAUDE_PLUGIN_ROOT}/agents/<name>.md`) and a compact profile (`${CLAUDE_PLUGIN_ROOT}/reference/compact/<name>.md`) exist, and that the Expert Selection Guide places the new stakeholder as a primary expert for at least one problem type and as a cross-cutting reviewer for at least one other (to avoid same-domain echo chambers).
