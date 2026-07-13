@@ -63,3 +63,10 @@ jobs:
 
       - name: Run oj-helper-hook test harness
         run: bash scripts/tests/oj-helper-hook-test.sh
+
+      - name: Run v0.1.0 regression + recommendation-traceability test
+        # Statically-verifiable guards for the v0.1.0 release (file relocation,
+        # inject-profile behavior, skill controls) plus assessment-recommendation
+        # traceability. Default mode: any documented-gap assertion FAILs loudly.
+        # See docs/test-plans/v0.1.0-test-plan.md.
+        run: bash scripts/tests/v0.1.0-regression-test.sh
