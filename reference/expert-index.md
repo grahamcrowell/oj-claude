@@ -37,7 +37,7 @@ These agents are AI personas, not human consultants. They provide consistent, pr
 | Senior Engineering Consultant | senior-engineering-consultant.md | Independent third-party review | Outside perspective, neutral review |
 | Senior Executive Leadership Coach | senior-executive-leadership-coach.md | Leadership, organizational dynamics | Org design, leadership coaching, executive comms |
 | Senior Test Engineer | senior-test-engineer.md | Test strategy, quality engineering | Test plans, quality gates, coverage strategy |
-| Senior Site Reliability Engineer | senior-sre.md | SLOs, reliability, operational toil | SLO design, reliability, on-call, capacity |
+| Senior Site Reliability Engineer | senior-site-reliability-engineer.md | SLOs, reliability, operational toil | SLO design, reliability, on-call, capacity |
 | Senior Software Engineer | senior-software-engineer.md | Implementation, code-level execution | Implementation execution after design |
 
 ---
