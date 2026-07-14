@@ -95,4 +95,4 @@ Per-project, OpenJunto reads and writes a local `.claude/` directory:
 - [WHY.md](WHY.md) — the problem OpenJunto solves, concrete examples, honest tradeoffs
 - [docs/onboarding.md](docs/onboarding.md) — your first 10 minutes after installation
 - [CONDUCTOR.md](CONDUCTOR.md) — the full Manager protocol
-- [agents/index.md](agents/index.md) — expert roster and engagement triggers
+- [reference/expert-index.md](reference/expert-index.md) — expert roster and engagement triggers

@@ -69,6 +69,6 @@ Every full expert profile in this system follows a 16-section template. Read you
 
 ## Handback Protocol Reference
 
-When you complete your work, return findings using the handback format defined in `CLAUDE.md` (Simple tier: 5-line compressed form; Moderate/Complex tier: 9-field full form including STRONGEST OBJECTION and FALSIFIER). Do not invent your own return structure — the manager parses the documented fields. STRONGEST OBJECTION must be the strongest counterargument to your own recommendation; FALSIFIER must name the empirical condition that would invalidate it.
+When you complete your work, return findings using the handback format defined in `${CLAUDE_PLUGIN_ROOT}/reference/execution-protocol.md` (Simple tier: 5-line compressed form; Moderate/Complex tier: 9-field full form including STRONGEST OBJECTION and FALSIFIER). Do not invent your own return structure — the manager parses the documented fields. STRONGEST OBJECTION must be the strongest counterargument to your own recommendation; FALSIFIER must name the empirical condition that would invalidate it.
 
 > **Note**: technical identifiers in this system (`oj-helper`, `oj-expert` HTML marker, `OJ_DEVMODE`, `{OJ_SOURCE}`) use the lowercase `oj-` prefix and are part of the tool contract — preserve them verbatim when referenced.

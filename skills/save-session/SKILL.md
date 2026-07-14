@@ -1,5 +1,6 @@
 ---
 description: Persist session state and compress carry-over before /clear; requires user approval before writing
+disable-model-invocation: true
 ---
 
 # /save-session

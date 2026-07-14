@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.1.0 - 2026-07-13
+
+**Provenance**: hand-cut into oj-claude, mirrored from the authoritative source edits in juntospec (commit 4e18298) and juntogen (commit fedac8f), both on branch `oj-0.1.0-improvements`. The juntogen regen pipeline is blocked upstream until BL-025-m.3 lands (real runs refused by the BL-025-m.1 soft guard), so this release uses the established hand-cut mechanism (as v0.0.9-v0.0.11) with the source kept in lockstep so a future regen reproduces it. Scope: the prioritized improvement list from an external plugin assessment (standing context weight, agent-registration hygiene, review economics).
+
+**Changes (hand-cut, mirrored to source)**:
+- **Slim CONDUCTOR injection**: the SessionStart-injected `CONDUCTOR.md` is now a small always-on core (role, absolute constraints, two-dimensional triage, stakeholder summary, and a just-in-time load pointer). The full execution mechanics (execution models, handback protocol, quality gates, agent spawning + model selection, definition of done, reference/operations) moved to a new on-demand `reference/execution-protocol.md` that the skills load for Moderate/Complex work. Injected context dropped from ~20.1KB to ~13.3KB (about 34% lighter every session).
+- **Triage Trivial (tier-0) fast-path**: typo-scale work with no design choices now carries zero mandatory stakeholders; the mandatory Product + Distinguished pair applies at Simple and above.
+- **Adversarial reviewer scope**: reviewers flag only correctness- and requirements-affecting gaps, and "no material concerns" is an acceptable outcome at all tiers (the mandatory FAILURE MODES TESTED section is retained).
+- **Registration hygiene**: `_preamble.md`, `index.md`, and the 16 compact profiles moved out of `agents/` (to `reference/expert-preamble.md`, `reference/expert-index.md`, `reference/compact/<name>.md`), so they no longer register as bogus `oj:*` agent types; `agents/` now holds only the 16 full profiles. The 16 full profiles gained two-key `name`/`description` frontmatter (routable descriptions); `bin/oj-helper inject-profile` now reads the relocated paths, strips profile frontmatter before injection, and the latent nested-`agents/compact/` fallback bug is fixed.
+- **Skill invocation controls**: side-effecting skills (cycle, run-task, sandbox-cycle, delegate-sandbox, save-session, workstream-new) set `disable-model-invocation: true`; read-only skills (show-backlog, health-check) set `allowed-tools` + `context: fork`.
+
+**Deferred (documented, not in this release)**:
+- Native subagent migration (per-expert `model`/`effort`/`tools` frontmatter, distinct subagent types) - reverses the IMMUTABLE D32 section 6 decision and needs an analyst/implementer profile split plus a preamble-preservation mechanism.
+- Profile slim from 16 to ~13 sections - reverses the IMMUTABLE D16 section 7 decision.
+- Clean-tree Stop hook, Agent Teams quality-gate hooks, and cost-at-triage surfacing.
+
+**Validation**: `scripts/validate-plugin.sh` 8/8 (`claude plugin validate` exit 0); `scripts/tests/plugin-e2e-test.sh` 25/25 (runtime inject-profile with relocated paths + frontmatter strip + compact fallback); source validators (vocabulary-audit, step-prompt-vocabulary-audit, contract-validate, canonical-id closure) pass on juntospec/juntogen.
+
+**DATA artifacts**:
+- `VERSION` (0.0.11 -> 0.1.0)
+- `.claude-plugin/plugin.json` (version 0.0.11 -> 0.1.0)
+
 ## v0.0.11 — 2026-07-08
 
 **Provenance**: hand-cut (no juntogen regen). Scope: quota-burn correction to the v0.0.10 roster. The two-tier fable / opus[1m] roster at all-xhigh effort, combined with a wide research fan-out, exhausted a 5-hour usage window on 2026-07-08 (~50-subagent `/oj:cycle`, ~72% of the day's cost-weighted usage on fable). Restore a cheap analysis tier, drop the default effort to `high`, and cap research fan-outs.

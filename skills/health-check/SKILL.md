@@ -1,6 +1,8 @@
 ---
 name: health-check
 description: Diagnose OpenJunto plugin runtime health — verify CONDUCTOR.md injection, oj-helper availability, jq dependency, plugin manifest, SubagentStart hook wiring.
+allowed-tools: [Bash, Read, Grep, Glob]
+context: fork
 ---
 
 # /oj:health-check

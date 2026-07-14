@@ -76,7 +76,7 @@ Every task gets **Product + Tech** as mandatory stakeholders. Domain signals add
 | SLOs / reliability | Site Reliability Engineer |
 | Test strategy / quality | Test Engineer |
 
-Full roster and engagement triggers: [`agents/index.md`](../agents/index.md).
+Full roster and engagement triggers: [`reference/expert-index.md`](../reference/expert-index.md).
 
 ## 5. Reading Expert Handbacks
 
@@ -113,6 +113,6 @@ The Manager picks the next item, triages it, delegates to experts, enforces peer
 
 - [WHY.md](../WHY.md) — honest tradeoffs and when OpenJunto is (and isn't) worth it
 - [CONDUCTOR.md](../CONDUCTOR.md) — the full Manager coordination protocol
-- [agents/index.md](../agents/index.md) — expert roster and engagement triggers
+- [reference/expert-index.md](../reference/expert-index.md) — expert roster and engagement triggers
 - Try `/run-task` on a project with a `.claude/BACKLOG.md`
 - Run the same real task through single-agent Claude and through OpenJunto — compare the output

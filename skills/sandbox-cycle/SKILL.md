@@ -1,5 +1,6 @@
 ---
 description: Autonomous backlog cycle (like /oj:cycle) that delegates each item's code-writing execution to a disposable sandbox container worker instead of an in-process sub-agent
+disable-model-invocation: true
 ---
 
 # /oj:sandbox-cycle
