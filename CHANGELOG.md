@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.1 - 2026-07-14
+
+**Provenance**: version bump packaging changes already merged to `main` after the v0.1.0 version commit; no new hand-cut edits in this release. The underlying changes were mirrored to source at merge time (juntogen commits 47c8e7b/75be089 drop the stray generator prompt from the snapshot file-set). Patch release - a bug fix, a plugin-tree cleanup, and test/CI additions; no feature or behavior changes to the running plugin.
+
+**Changes**:
+- **Fix**: corrected a stale `senior-sre.md` reference in `reference/expert-index.md` (the profile basename is `senior-site-reliability-engineer.md`).
+- **Cleanup**: removed a stray `juntogen/claude/step-01-workstream-new.md` generator prompt that had leaked into the plugin tree; it is generator source, not shipped plugin content.
+- **Tests/CI**: added a v0.1.0 regression + recommendation-traceability test (`scripts/tests/v0.1.0-regression-test.sh`), a test-plan doc (`docs/test-plans/v0.1.0-test-plan.md`), and a `plugin-validate.yml` CI step.
+
+**DATA artifacts**:
+- `VERSION` (0.1.0 -> 0.1.1)
+- `.claude-plugin/plugin.json` (version 0.1.0 -> 0.1.1)
+
 ## v0.1.0 - 2026-07-13
 
 **Provenance**: hand-cut into oj-claude, mirrored from the authoritative source edits in juntospec (commit 4e18298) and juntogen (commit fedac8f), both on branch `oj-0.1.0-improvements`. The juntogen regen pipeline is blocked upstream until BL-025-m.3 lands (real runs refused by the BL-025-m.1 soft guard), so this release uses the established hand-cut mechanism (as v0.0.9-v0.0.11) with the source kept in lockstep so a future regen reproduces it. Scope: the prioritized improvement list from an external plugin assessment (standing context weight, agent-registration hygiene, review economics).
