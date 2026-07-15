@@ -14,7 +14,7 @@ OpenJunto ships as a Claude Code plugin — no build step. Install it from the m
 Then start a new Claude Code session (restart, or `/clear`) to load the plugin. To iterate on the plugin locally without installing it, load the working tree directly:
 
 ```bash
-git clone https://github.com/openjunto/oj-claude.git
+git clone https://github.com/grahamcrowell/oj-claude.git
 claude --plugin-dir ./oj-claude
 ```
 
