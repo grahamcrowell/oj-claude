@@ -215,6 +215,8 @@ Set the `model` parameter on Task tool spawns to match the task's cognitive dema
 | **opus[1m]** (tier: implementation, cost ratio 1.0×) | Routine edits, mechanical transforms, implementation with clear requirements | Doc updates, boilerplate, search-and-replace across files, feature implementation from a spec, code review, test writing |
 | **fable** (tier: reasoning, cost ratio 2.0×) | Ambiguous problems, architectural decisions, novel design | System design, complex debugging, adversarial review, cross-domain synthesis |
 
+The model roster above - names, tiers, and cost ratios - is defined in `${CLAUDE_PLUGIN_ROOT}/platform-defaults.yaml` under `platform.models`, the single source of truth. This table, the function-first rules, and the per-role defaults below mirror that roster for inline guidance; when the roster changes, update `platform-defaults.yaml` (and re-render), not these tables.
+
 When in doubt, use the more capable model (sonnet < opus[1m] < fable).
 
 #### Function-First Selection Rules
