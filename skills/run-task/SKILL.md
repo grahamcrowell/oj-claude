@@ -164,7 +164,9 @@ After tier classification confirms Complex, run `oj-helper agent-teams-check` an
 
 #### Test
 
-Validate with tests. Prefer a balanced pyramid (unit > integration > e2e). Run existing tests to confirm no regressions before committing.
+**Run the item's verification command first.** If the selected item's acceptance criteria carry a verification command (the executable definition-of-done graduation wrote into the item, e.g. a line like ``Verify: `<cmd>` passes``), execute that command verbatim and report the command invoked together with its actual output as the evidence that the task is done - never a bare "tests pass" or "done" assertion. A non-zero exit is a hard block: do NOT proceed to Commit; stop and surface the failing command and its output to the user per the "Stop and ask if blocked or uncertain" constraint below, rather than rationalizing the failure and continuing. If the item carries no verification command, fall back to the balanced-suite / no-regression check below (which still runs) and state explicitly that the item carried no verification command.
+
+Then validate with tests. Prefer a balanced pyramid (unit > integration > e2e). Run existing tests to confirm no regressions before committing. Both the item's verification command (when present) and this balanced-suite result appear in the evidence for this run-task invocation.
 
 #### Commit
 
