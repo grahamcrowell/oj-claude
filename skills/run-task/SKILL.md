@@ -101,6 +101,29 @@ If the user overrides the recommendation, use their selection.
 
 ### Phase 3 — Plan & Execute
 
+#### Reconcile Live State
+
+Before planning stakeholder engagement, re-verify any live external state the selected item cites - drift here can invalidate the tier or plan, so it runs first. Determine what the item cites:
+
+- A `Source:` back-reference to an originating plan task.
+- References to external artifacts with an independent lifecycle: reviewable changes (PRs), prior work products, external resources, tickets, or commits.
+- A `Blocked By` dependency on another backlog item.
+
+For each cited reference, run the matching check and record a verdict:
+
+- **Cited PR / reviewable change**: `gh pr view <n> --json state,mergedAt,mergeable` (the same pattern save-session uses). Compare its actual state against what the item asserts.
+- **`Blocked By` predecessor**: re-read that predecessor's backlog status (resolve the backlog path with `oj-helper resolve-path backlog`, fallback `.claude/BACKLOG.md`).
+- **Cited file / resource**: a targeted existence/shape check (read the path, confirm it exists and still matches what the item assumes).
+- **`Source:` plan task**: diff the originating plan task against the graduated item to confirm the item still reflects the plan.
+
+Report each reconciliation with four fields: what was cited (or "nothing cited"), the exact check run, a verdict of `CURRENT` | `DRIFTED` | `UNCHECKABLE`, and the action taken.
+
+- **`CURRENT`**: the cited state matches reality - proceed to planning.
+- **`DRIFTED`** (cited change already merged/closed, a `Blocked By` predecessor still open, a resource gone or changed, or the plan task diverged from the graduated item): STOP. Do NOT proceed to stakeholder engagement planning on the stale premise, and do NOT auto-adjust. Surface the drift to the user per the **"Stop and ask if blocked or uncertain"** constraint below and wait for direction.
+- **`UNCHECKABLE`** (e.g. the check tool is unreachable): non-blocking, but state it explicitly - the same way issue tracker failures are non-blocking.
+
+When the item cites no external live state, state explicitly: **"no live-state cited - reconciliation is a no-op"** and proceed. Never emit a hollow always-passes check.
+
 #### Plan Stakeholder Engagement
 
 Before spawning any agents, declare the engagement plan:
@@ -164,7 +187,9 @@ After tier classification confirms Complex, run `oj-helper agent-teams-check` an
 
 #### Test
 
-Validate with tests. Prefer a balanced pyramid (unit > integration > e2e). Run existing tests to confirm no regressions before committing.
+**Run the item's verification command first.** If the selected item's acceptance criteria carry a verification command (the executable definition-of-done graduation wrote into the item, e.g. a line like ``Verify: `<cmd>` passes``), execute that command verbatim and report the command invoked together with its actual output as the evidence that the task is done - never a bare "tests pass" or "done" assertion. A non-zero exit is a hard block: do NOT proceed to Commit; stop and surface the failing command and its output to the user per the "Stop and ask if blocked or uncertain" constraint below, rather than rationalizing the failure and continuing. If the item carries no verification command, fall back to the balanced-suite / no-regression check below (which still runs) and state explicitly that the item carried no verification command.
+
+Then validate with tests. Prefer a balanced pyramid (unit > integration > e2e). Run existing tests to confirm no regressions before committing. Both the item's verification command (when present) and this balanced-suite result appear in the evidence for this run-task invocation.
 
 #### Commit
 
