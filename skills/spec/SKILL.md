@@ -60,7 +60,7 @@ State the tier and which artifacts you will produce before authoring.
    - a **verification command** — the exact executable check that is green when the task is done (e.g. `uv run --extra dev pytest`, `mvn test`, `terraform validate && tflint`), not prose;
    - a size estimate;
    - optionally an explicit `priority:` field (overrides the derived priority at graduation).
-2. Compute and record the **critical path**. Warn on any task estimated over ~1.5–2 dev-days and recommend splitting so each task maps to one review-sized PR (warn, do not block).
+2. Compute and record the **critical path**. Warn on any task estimated over ~1.5–2 dev-days and recommend splitting so each task maps to one review-sized PR (warn, do not block). Also warn (do not block) if a task's `verify:` command contains no assertion-bearing invocation - only `true`, `:`, `echo ...`, `exit 0`, or comments, with no test-runner/build/lint/validate call - and recommend a real check; such a command satisfies Deliver's requirement that a verification command be present and executed without proving the task is done.
 3. Present the plan for review. Then run **Step G** to graduate the tasks.
 
 ### Step G — Graduate tasks to the backlog
