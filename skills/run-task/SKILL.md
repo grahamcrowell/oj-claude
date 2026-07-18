@@ -206,8 +206,9 @@ Create atomic commits with clear, focused messages.
   - Add completion comment: `oj-helper issue-tracker-comment KEY --body "Completed: [summary]"`
   - Create tickets for any discovered work: `oj-helper issue-tracker-create --summary "..." --description "..."`
 - **BACKLOG.md mode** (path from `oj-helper resolve-path backlog`):
-  - Mark completed items
+  - Mark completed items; any `Status` line you write or touch that asserts external state (a PR/branch/ticket) carries a `verified <today>` stamp
   - Add discovered work with priority and (if applicable) "Blocked By" notes
+  - **Cross-reference refresh (single-source enforcement)**: if the item's work changed the state of a PR, branch, or ticket the backlog references, grep the resolved backlog (and `session.md` if present) for every other mention of that token — `grep -n "<pr-number-or-ticket-key>" <backlog-file> session.md` — and refresh EVERY hit in this run-task invocation's commit, not just the item that was worked. A fact about an external artifact's state lives in exactly one place (the owning item's `Status` line); every other table references it by id.
   - Write back to the resolved backlog file
 
 ### Phase 5 — Learn

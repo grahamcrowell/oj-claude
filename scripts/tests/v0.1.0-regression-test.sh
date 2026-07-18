@@ -219,7 +219,7 @@ assert "T-B5.6 unknown profile: exit 0" "$([[ "${INJECT_RC}" -eq 0 ]] && echo ok
 assert "T-B5.6 unknown profile: injects nothing" "$([[ -z "${UNK_CTX}" ]] && echo ok || echo no)"
 
 echo "-- C6: skill invocation controls --"
-for s in cycle run-task sandbox-cycle delegate-sandbox save-session workstream-new; do
+for s in cycle run-task save-session spec backlog-compact workstream-new; do
   assert "T-B6.1 skills/${s} sets disable-model-invocation: true" \
     "$(hasF "skills/${s}/SKILL.md" 'disable-model-invocation: true')"
 done

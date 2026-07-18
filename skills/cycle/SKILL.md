@@ -137,6 +137,8 @@ Create atomic commits with clear messages scoped to THIS item. Do NOT include "C
 
 ### Step 8 — Update Backlog
 - **BACKLOG.md**: Mark THIS item complete, add any discovered work, update the resolved backlog file. Commit this update as part of the per-item commit boundary (Step 7) — the loop must not advance with an unstaged backlog edit.
+- **Stamp freshness**: any `Status` line you write or touch that asserts external state (a PR/branch/ticket) carries a `verified <today>` stamp — an un-dated external-state assertion is unverified by construction.
+- **Cross-reference refresh (single-source enforcement)**: if THIS item's work changed the state of a PR, branch, or ticket that the backlog references, grep the resolved backlog (and `session.md` if present) for **every other mention** of that token — `grep -n "<pr-number-or-ticket-key>" <backlog-file> session.md` — and refresh EVERY hit in the same per-item commit, not just the item the loop started from. A fact about an external artifact's state lives in exactly one place (the owning item's `Status` line); every other table references it by id. This is one grep and it prevents the duplicate-copy drift where one edit corrects one mention and another silently goes stale.
 
 ### Step 9 — Per-Item Retrospective
 Brief retrospective on what worked and what to improve for THIS item. Keep it short (a few bullets) — full retros happen per-invocation if needed, and Complex-tier items trigger a stop (see Loop & Stop Conditions) so they get their own invocation. For Complex tier items (if one slipped through), write to the directory from `oj-helper resolve-path retros` (fallback `.claude/archive/retros/` if it prints nothing).
