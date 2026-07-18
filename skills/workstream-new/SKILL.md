@@ -9,13 +9,15 @@ Set up an isolated execution environment for a parallel `/oj:cycle` thread. Each
 
 > Use this when you want to run multiple `/oj:cycle` invocations concurrently against the same workspace without file collisions. Each workstream is a separate `claude` session, each targeting its own git worktree on its own branch.
 
+> **One workstream concept, two surfaces.** The execution workstream this skill scaffolds is the same workstream the shared backlog groups items under: the `WS-<X>` blocks (goal / sequencing / current bottleneck) defined by `${CLAUDE_PLUGIN_ROOT}/templates/backlog.md` (§ Backlog Item Schema). A parallel `/oj:cycle` thread should have a declared home in that backlog — a workstream block whose items it drains — so its work is visible and single-sourced alongside every other thread's.
+
 ## Protocol
 
 ### Step 1 — Elicit required arguments
 
 You need at minimum:
 
-- **WSID** — the workstream identifier (e.g. `feat-auth`, `DATA-1234`). Used as the directory name and the default branch name.
+- **WSID** — the workstream identifier (e.g. `feat-auth`, `DATA-1234`). Used as the directory name and the default branch name. Prefer a WSID that matches (or maps cleanly to) a `WS-<X>` block in the shared backlog, so the execution thread and its backlog home share one identity. If the shared backlog has no corresponding workstream block yet, flag to the user that they should add one (goal / sequencing / current bottleneck per `${CLAUDE_PLUGIN_ROOT}/templates/backlog.md`) — this skill does not edit the backlog itself.
 - **REPO** — the name of the repo directory inside the workspace (e.g. `my-repo`). Must exist at `<workspace>/<repo>`.
 
 Optional:

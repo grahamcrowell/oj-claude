@@ -77,8 +77,9 @@ Converts the plan's `T-<subject>-NN` tasks into backlog items `/oj:run-task` and
 
 **G3 — Order and match.** Topologically sort tasks by `blockedBy`. For each, look up an existing item by `Source: <plan-doc>#T-<subject>-NN` (grep the backlog file, or `oj-helper issue-tracker-list` + the sidecar map). Classify each as **create**, **update** (matched item still `todo`/open), **hold** (matched item in progress or done — do not modify), or **cancel** (item whose plan task no longer exists).
 
-**G4 — Build and validate the full set (NO writes).** Build every item entirely in memory:
-- title ← task title; acceptance ← the task's verification command verbatim (`Verify: \`<cmd>\` passes`); `Blocked By` ← the graduated ids of the task's `blockedBy` predecessors (they sort earlier, so their ids already exist); `Source:` ← `<plan-doc>#T-<subject>-NN`; priority ← G2; oversized tasks carry a `[oversized: consider splitting]` note.
+**G4 — Build and validate the full set (NO writes).** Build every item entirely in memory, in the canonical backlog item schema (`${CLAUDE_PLUGIN_ROOT}/templates/backlog.md`):
+- title ← task title; `AC` (acceptance) ← the task's verification command verbatim (`Verify: \`<cmd>\` passes`); `Links` ← the graduated ids of the task's `blockedBy` predecessors as `Blocked By` references plus any cited external artifact **as a reference, never a restated status** (they sort earlier, so their ids already exist); `Source:` ← `<plan-doc>#T-<subject>-NN`; priority ← G2; oversized tasks carry a `[oversized: consider splitting]` note.
+- **Single-source discipline**: do not write a second copy of any external-state fact. If an item's `Status` asserts external state (e.g. a cited PR's state), stamp it `verified <today>`; otherwise link to the owning reference rather than caching its status. Graduation adds items that point, it does not duplicate.
 
 Then validate the whole set: every predecessor resolves to an in-set or already-graduated id, no `Source:` collides, no id collides, every task that requires a verification command has one. **If any task fails validation, abort Step G now — write nothing, present nothing — and report the offending task(s).** Preparation reaches G5 only with a fully built, fully valid set.
 

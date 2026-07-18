@@ -54,8 +54,18 @@ Read `<backlog-file>` and check:
 
 - If the header states an item count, does it match the actual item count?
 - Do any items marked "Blocked By" reference items that are now completed? (Potential unblock.)
+- **Self-consistency scan (single-source drift)** — the cheap mechanical catch for duplicated facts: extract every `#<N>` / `<PREFIX>-<N>` / ticket-key token that appears **more than once** across `<backlog-file>` (and `<session-file>`), and diff the surrounding status word (`OPEN` / `MERGED` / `CLOSED` / `DONE` / etc.) across its occurrences. Any divergence — the same PR called `OPEN` in one place and `MERGED` in another — is candidate drift and MUST be flagged. This is a pure file-internal check: **no live `gh` or issue-tracker calls**, just the file's agreement with itself. It is the low-cost complement to the full re-verification a backlog audit does, and it catches exactly the duplicate-copy staleness the single-source discipline is meant to prevent.
 
 Note any inconsistencies for inclusion in the summary.
+
+### Step 4b — Reconcile External State (cadence-gated)
+
+The backlog is downstream of the systems that own external state; without a periodic inbound pull, a ticket someone else closed or a PR merged outside a session sits unreflected. This step is **cadence-gated** — run it only for references stale enough to warrant re-polling (e.g. an item whose `Status` `verified <date>` stamp is older than a few days, or an item this save is about to record a decision on), so a routine save stays cheap:
+
+- **In-flight PRs**: reuse the `gh pr view` results already gathered in Step 3 — no extra calls.
+- **Issue-tracker items** (issue-tracker mode only): run `oj-helper issue-tracker-list` and compare each live status against what the referencing backlog item asserts. This uses only the `oj-helper issue-tracker-*` abstraction, so it is platform-neutral.
+
+Report any drift (a tracker transition or PR merge/close not reflected in the backlog) as a **flagged inconsistency for the user to confirm** in the Step 7 summary. Do **not** auto-rewrite an item's scope or status from an externally-made transition — re-opening or re-scoping is a user decision. If nothing is stale enough to re-poll, state that reconciliation was a no-op.
 
 ### Step 5 — Check for Unprocessed Input
 
