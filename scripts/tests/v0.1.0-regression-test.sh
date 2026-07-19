@@ -233,11 +233,12 @@ for s in show-backlog health-check; do
 done
 
 echo "-- C7: version --"
-assert "T-B7.1 VERSION == 0.1.1" "$([[ "$(cat VERSION)" == "0.1.1" ]] && echo ok || echo no)"
-assert "T-B7.2 plugin.json version == 0.1.1" \
-  "$([[ "$(jq -r .version .claude-plugin/plugin.json)" == "0.1.1" ]] && echo ok || echo no)"
+assert "T-B7.1 VERSION == 0.2.0" "$([[ "$(cat VERSION)" == "0.2.0" ]] && echo ok || echo no)"
+assert "T-B7.2 plugin.json version == 0.2.0" \
+  "$([[ "$(jq -r .version .claude-plugin/plugin.json)" == "0.2.0" ]] && echo ok || echo no)"
 assert "T-B7.3 CHANGELOG has v0.1.0 section" "$(hasF CHANGELOG.md '## v0.1.0')"
 assert "T-B7.4 CHANGELOG has v0.1.1 section" "$(hasF CHANGELOG.md '## v0.1.1')"
+assert "T-B7.5 CHANGELOG has v0.2.0 section" "$(hasF CHANGELOG.md '## v0.2.0')"
 
 # ══════════════════════════════════════════════════════════════════════
 # Tier D — assessment recommendation traceability (14 items, P1-P5)

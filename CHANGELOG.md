@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.2.0 - 2026-07-18
+
+**Provenance**: hand-cut into oj-claude across four PRs merged 2026-07-17..18 (`#4`-`#7`), mirrored to source in juntospec (D56 backlog item schema + single-source discipline; D48 template inventory) and juntogen (step-05 templates, step-06 skills, step-07 helper). Regen remains blocked upstream (BL-025-m.3), so the established hand-cut mechanism is used with the source kept in lockstep so a future regen reproduces it. Source anchors: juntospec `main` `f30b46d`, juntogen `main` `676e7c5`. Scope: front-half spec authoring, execution-time evidence + live-state reconciliation, a single-sourced backlog schema, and helper hygiene.
+
+**Added**:
+- **`/oj:spec` front-half authoring skill** - `reqs | design | plan | refresh` modes that author requirements -> design -> implementation-plan artifacts and **graduate** the plan's tasks into the backlog (Step G): all-or-none, confirmation-gated, keyed on a `Source:` back-reference, with critical-path priority derivation, dependency translation, per-task verification commands carried verbatim into acceptance, and idempotent re-graduation. New `templates/{requirements,design,implementation-plan}.md` are what the skill authors against.
+- **`/oj:backlog-compact` skill** - size-triggered backlog hygiene: when the backlog outgrows a single read (~500-600 lines), pin the current file to a git blob, then rewrite active items into the compact single-sourced schema; approval-gated, atomic single-replace write.
+- **`templates/backlog.md`** - the canonical single-sourced, workstream-first backlog item schema: workstream grouping (goal / bottleneck / sequencing), per-item `Status` / `Urgency` / `AC` / `Links`, and the single-source discipline (a PR/branch/ticket state is asserted in exactly one place - the owning item's `Status` line, carrying a `verified <date>` stamp - and every other table references it by id rather than restating it).
+
+**Changed**:
+- **Execution evidence at Deliver** - `/oj:run-task` and `/oj:cycle` now run the selected item's acceptance verification command first and report the command plus its actual output as the evidence of done (not a bare "tests pass"), then run the balanced-suite / no-regressions check; a non-zero exit hard-blocks the commit. Items with no verification command fall back to the balanced suite with an explicit statement.
+- **Live-state reconciliation at Execute kickoff** - a new Reconcile Live State step (run-task Phase 3 top; cycle Step 4, scoped to the current item) re-verifies each reference an item cites (PRs via `gh pr view`, `Blocked By` predecessors, cited files, the `Source:` plan task) and records a `CURRENT | DRIFTED | UNCHECKABLE` verdict; `DRIFTED` stops and surfaces to the user rather than building on a stale premise.
+- **Cross-reference refresh at Update Backlog** - when a delivered item changes a referenced PR/branch/ticket, `/oj:run-task` and `/oj:cycle` grep the backlog (and session state) for every other mention of that token and refresh all of them in the same commit, enforcing the single-source discipline on the write side. `Status` lines asserting external state carry a `verified <date>` stamp.
+- **`/oj:save-session` drift checks** - a self-consistency scan flags any PR/ticket token whose status word disagrees across the file (pure file-internal, no live calls), plus a cadence-gated inbound reconcile that pulls externally-made PR/ticket transitions and flags them for the user.
+- **`/oj:spec` plan mode** warns (does not block) when a task's `verify:` command asserts nothing (only `true`/`:`/`echo`/`exit 0`/comments), protecting the definition-of-done the Deliver phase now executes.
+- **`/oj:workstream-new`** now ties the execution workstream it scaffolds to the shared backlog's `WS-<X>` blocks (goal / sequencing / bottleneck).
+
+**Fixed**:
+- **`oj-helper workstream-new` usage errors now exit `2`** (via a new `die_usage` helper), matching the 0/1/2 exit-code contract its banner comment documented; driver errors (workspace unresolvable, repo missing, not a git repo) keep exit `1`. Hook tests strengthened to assert the exact codes.
+
+**Removed**:
+- **`/oj:delegate-sandbox` and `/oj:sandbox-cycle` skills** - they depended on an external `claude-sandbox` repo and `oj-worker.sh` and are dropped from the plugin. If you relied on the disposable-sandbox worker flow, it is no longer shipped.
+
+**Validation**: `scripts/validate-plugin.sh` 8/8 (`claude plugin validate` exit 0); `scripts/tests/plugin-e2e-test.sh` 25/25; `scripts/tests/oj-helper-hook-test.sh` 64/64; `scripts/tests/v0.1.0-regression-test.sh` 75 pass / 0 fail (8 runtime-only skips); source validators (vocabulary-audit, step-prompt-vocabulary-audit, contract-validate) pass on juntospec/juntogen.
+
+**DATA artifacts**:
+- `VERSION` (0.1.1 -> 0.2.0)
+- `.claude-plugin/plugin.json` (version 0.1.1 -> 0.2.0)
+
 ## v0.1.1 - 2026-07-14
 
 **Provenance**: version bump packaging changes already merged to `main` after the v0.1.0 version commit; no new hand-cut edits in this release. The underlying changes were mirrored to source at merge time (juntogen commits 47c8e7b/75be089 drop the stray generator prompt from the snapshot file-set). Patch release - a bug fix, a plugin-tree cleanup, and test/CI additions; no feature or behavior changes to the running plugin.
