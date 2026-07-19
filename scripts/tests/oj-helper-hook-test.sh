@@ -909,10 +909,10 @@ scenario_s15_workstream_new() {
     XDG_CONFIG_HOME="$T/xdg" \
     "${OJ_HELPER}" workstream-new >"$T/stdout" 2>"$T/stderr" || rc=$?
 
-    if [ "$rc" != "0" ]; then
-        assert_one "S15b dispatcher routing: exit non-zero when WSID missing" "ok"
+    if [ "$rc" = "2" ]; then
+        assert_one "S15b dispatcher routing: exit 2 (usage error) when WSID missing" "ok"
     else
-        assert_one "S15b dispatcher routing: exit non-zero when WSID missing" "fail" "exit=0 (expected non-zero)"
+        assert_one "S15b dispatcher routing: exit 2 (usage error) when WSID missing" "fail" "exit=$rc (expected 2)"
     fi
     if grep -qF "WSID is required" "$T/stderr"; then
         assert_one "S15b dispatcher routing: stderr contains \"WSID is required\" (not Unknown-subcommand branch)" "ok"
@@ -933,10 +933,10 @@ scenario_s15_workstream_new() {
     XDG_CONFIG_HOME="$T/xdg" \
     "${OJ_HELPER}" workstream-new feat-x some-repo >"$T/stdout" 2>"$T/stderr" || rc=$?
 
-    if [ "$rc" != "0" ]; then
-        assert_one "S15c workspace resolution failure: exit non-zero" "ok"
+    if [ "$rc" = "1" ]; then
+        assert_one "S15c workspace resolution failure: exit 1 (driver error) on workspace resolution failure" "ok"
     else
-        assert_one "S15c workspace resolution failure: exit non-zero" "fail" "exit=0 (expected non-zero)"
+        assert_one "S15c workspace resolution failure: exit 1 (driver error) on workspace resolution failure" "fail" "exit=$rc (expected 1)"
     fi
     if grep -qF "could not resolve workspace" "$T/stderr"; then
         assert_one "S15c workspace resolution failure: stderr contains \"could not resolve workspace\"" "ok"
