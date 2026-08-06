@@ -219,6 +219,12 @@ The model roster above - names, tiers, and cost ratios - is defined in `${CLAUDE
 
 When in doubt, use the more capable model (sonnet < opus[1m] < fable).
 
+#### Minimum-Model Floor
+
+A configurable floor sets the lowest tier any spawn may run on. It is defined in `${CLAUDE_PLUGIN_ROOT}/platform-defaults.yaml` under `platform.model_policy.min_model_tier` (the single source of truth; this prose mirrors it and re-renders on a policy change). The value is a tier name - `routine`, `implementation`, or `reasoning` (ordering: routine < implementation < reasoning) - **currently `routine`**.
+
+Apply the floor as the **last step** of model selection, after the function-first rules and per-role defaults below have resolved a tier: if the resolved tier is below the floor, raise it to the floor; otherwise leave it unchanged. The floor is a lower bound only - it never lowers a selection, so every escalation (reviewer slot, Complex-tier lead, domain-decisive-risk specialist) still stands. With the floor at `routine` no spawn is bumped and selection is exactly as the rules below specify; raising it to `implementation` bumps routine spawns (Phase-1 analysts, docs-only / bounded lenses, the Technical Writer default) up to `opus[1m]`; raising it to `reasoning` runs every spawn on `fable`.
+
 #### Function-First Selection Rules
 
 Pick the model per spawn by the spawn's **function** (what the role is doing in this engagement), with per-role defaults as a secondary anchor. The function rules below override the role-default table when they conflict — a role's default tier is the floor for routine engagements, not a ceiling on adversarial or high-risk ones.
