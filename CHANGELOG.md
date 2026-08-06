@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.2.1 - 2026-08-05
+
+**Provenance**: hand-cut into oj-claude, mirrored to source in juntospec (`D32-execution-models.md` section 6 Minimum-Model Floor; `M16-derivation-architecture.md` section 3 platform-capability schema `model_policy`; `platform-contract.yaml` keep_list anchor refresh) and juntogen (`claude/platform-defaults.yaml`, `claude/steps/step-00-platform-ingestion.md`, `claude/steps/step-04-reference-files.md`). Regen remains blocked upstream (BL-025-m.3), so the established hand-cut mechanism is used with the source kept in lockstep so a future regen reproduces it. Source commits: juntospec `d21c06d`, juntogen `d5c216c`. Scope: one operator-tunable model-selection policy knob, default-off.
+
+**Added**:
+- **Minimum-model floor** - a configurable floor on the lowest model tier any spawn may run on. The value lives in `platform-defaults.yaml` under `platform.model_policy.min_model_tier` (the single source of truth) and is a tier name: `routine`, `implementation`, or `reasoning` (ordering `routine < implementation < reasoning`). It ships set to `routine`.
+- **`reference/execution-protocol.md` section Model Selection > Minimum-Model Floor** - the manager applies the floor as the **last step** of model selection, after the function-first rules and per-role defaults have resolved a tier: a resolved tier below the floor is raised to the floor, a resolved tier at or above it is left unchanged. The floor is a lower bound only, so it never lowers a selection and every escalation (adversarial reviewer slot, Complex-tier lead, domain-decisive-risk specialist) still stands. At the shipped `routine` setting no spawn is bumped and selection is exactly as the existing rules specify; `implementation` raises routine spawns (Phase-1 analysts, docs-only and bounded lenses, the Technical Writer default) to `opus[1m]`; `reasoning` runs every spawn on `fable`.
+
+Mechanism follows the BL-025 materialized-view precedent: `platform-defaults.yaml` holds the value and the protocol prose mirrors it, re-rendering when the policy changes, rather than dereferencing YAML at runtime.
+
+**Changed**:
+- `platform-defaults.yaml` schema version 2.1.0 -> 2.2.0 (`version_date` 2026-07-29). Stays byte-identical to the juntogen copy.
+
+**SemVer**: patch bump (0.2.0 -> 0.2.1). The change is purely additive and the shipped default (`routine`) is the identity case, so an installation that does not edit the value sees no behavior change.
+
+**Validation**: `scripts/validate-plugin.sh` 8/8; `scripts/tests/plugin-e2e-test.sh` 25/25; `scripts/tests/plugin-validate-test.sh` 20/20; `scripts/tests/oj-helper-hook-test.sh` 64/64; `scripts/tests/v0.1.0-regression-test.sh` 76 pass / 0 fail (8 runtime-only skips). Source validators (vocabulary-audit, step-prompt-vocabulary-audit, contract-validate) pass on juntospec/juntogen.
+
+**DATA artifacts**:
+- `VERSION` (0.2.0 -> 0.2.1)
+- `.claude-plugin/plugin.json` (version 0.2.0 -> 0.2.1)
+- `scripts/tests/v0.1.0-regression-test.sh` (T-B7.1/T-B7.2 version guards 0.2.0 -> 0.2.1; new T-B7.6 asserts a v0.2.1 CHANGELOG section)
+
 ## v0.2.0 - 2026-07-18
 
 **Provenance**: hand-cut into oj-claude across four PRs merged 2026-07-17..18 (`#4`-`#7`), mirrored to source in juntospec (D56 backlog item schema + single-source discipline; D48 template inventory) and juntogen (step-05 templates, step-06 skills, step-07 helper). Regen remains blocked upstream (BL-025-m.3), so the established hand-cut mechanism is used with the source kept in lockstep so a future regen reproduces it. Source anchors: juntospec `main` `f30b46d`, juntogen `main` `676e7c5`. Scope: front-half spec authoring, execution-time evidence + live-state reconciliation, a single-sourced backlog schema, and helper hygiene.
