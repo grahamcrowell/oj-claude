@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.3.0 - 2026-08-06
+
+**Provenance**: hand-cut into oj-claude, mirrored to source in juntospec (`D16-agent-system.md` section 4 roster probing-pattern column; `D24-triage-engine.md` section 4 Common Task Patterns) and juntogen (`claude/steps/step-03-agent-profiles.md` Data Architect differentiator, `claude/steps/step-04-reference-files.md` stakeholder-guide requirement). Regen remains blocked upstream (BL-025-m.3), so the established hand-cut mechanism is used with the source kept in lockstep so a future regen reproduces it. Source commits: juntospec `60549d1`, juntogen `b236b0b`. Scope: one expert profile gains a constraint class it did not previously own, plus one routing row.
+
+**Added**:
+- **Physical-design lens on the Senior Data Architect.** The profile named lakehouse formats in its expertise, but all eight of its red flags and all four of its quality-standards subsections addressed logical concerns only - lineage, schema fit, governance, data quality. Nothing in it examined the write path, the commit protocol, or how many writers touch one table, so physical properties of the storage substrate (commit throughput, file sizing, partition write fan-out) were a constraint class no perspective in the roster could name. The profile now carries: a Core Expertise bullet covering partition and file layout, target file size, compaction, and the table format's commit protocol under concurrent writers; a **Physical design** quality-standards subsection asserting that every writer to a shared table is named with its commit cadence and isolation mode, that layout and compaction ownership are decided rather than inherited from defaults, and that concurrent-write behavior states what retries, what fails, and what the caller sees; two red flags in the required active language, one enumerating concurrent writers whose commit protocol was never examined, one tracing layout defaults at steady state rather than at launch; a key question on colliding concurrent commits; and two pipeline patterns (fan writers in before they fan out where the format serializes commits; name the compaction owner and cadence when the write pattern produces small files).
+- **T-B7.7** regression assertion for a v0.3.0 CHANGELOG section.
+
+**Changed**:
+- **The Data Architect's unobservable-performance limitation no longer suppresses the finding.** The Section 11 bullet previously read "you cannot observe actual data distributions, skew, or query plans; performance claims are hypotheses", which instructed the persona to discount exactly the constraint class it is now responsible for raising. It now bounds the *magnitude* of a claim only, and says so explicitly: name the physical limit and the measurement that would settle it, rather than omitting it because it cannot be sized.
+- **The Data Architect's SRE handoff trigger fires on contention**, not only on an unachievable freshness SLA. This pulls the saturation lens in on demand rather than adding SRE to every data-design roster.
+- **`reference/compact/senior-data-architect.md`** carries the commit-contention red flag and the write path in its expertise list, so the lens survives Simple-tier inline rotation where the manager applies compact profiles directly.
+- **`reference/stakeholder-guide.md`** Common Task Patterns: `Data pipeline / ETL design` gains SRE alongside Data Architect and DevOps Engineer. A pipeline is a production system whose write path can saturate, and the SRE profile already probes for surprise saturation, but it was not on the default pipeline roster.
+
+**Deliberately unchanged**: the `reference/expert-index.md` Expert Selection Guide row for `Data system design` still routes supporting = Distinguished Engineer + Data Scientist, cross-cutting = Security Engineer. Adding SRE there was rejected three ways: displacing the Security reviewer contradicts `D16` section 5, which fixes `Data system design -> Security Engineer reviews` as a CRITICAL DESIGN CHOICE and would drop the classification and PII lens from pipeline work; appending SRE puts the row at five identified stakeholders, tripping the Moderate-to-Complex escalation guard on every data design; and a pipeline-specific row violates that file's own maintenance rule, which requires a problem type that 2+ engagements have triaged consistently. The contention-triggered SRE handoff covers the case on demand instead.
+
+**SemVer**: minor bump (0.2.1 -> 0.3.0). An expert perspective gains a constraint class it did not previously raise and one triage row adds a stakeholder, so engagements touching data pipelines will surface findings and spawn a perspective they did not before. Additive - nothing is removed and no existing assertion is weakened - but it is a behavior change, not a default-off knob.
+
+**Not yet observed at runtime**: the lens is statically validated only. No session has yet confirmed the Data Architect raises commit contention unprompted at Moderate tier, nor that the reworded limitation does not make it hedge the finding away.
+
+**Validation**: `scripts/validate-plugin.sh` 8/8; `scripts/tests/plugin-validate-test.sh` 20/20; `scripts/tests/plugin-e2e-test.sh` 25/25; `scripts/tests/oj-helper-hook-test.sh` 64/64; `scripts/tests/v0.1.0-regression-test.sh` 77 pass / 0 fail (8 runtime-only skips). Source validators (vocabulary-audit, step-prompt-vocabulary-audit, contract-validate) pass on juntospec/juntogen.
+
+**DATA artifacts**:
+- `VERSION` (0.2.1 -> 0.3.0)
+- `.claude-plugin/plugin.json` (version 0.2.1 -> 0.3.0)
+- `scripts/tests/v0.1.0-regression-test.sh` (T-B7.1/T-B7.2 version guards 0.2.1 -> 0.3.0; new T-B7.7 asserts a v0.3.0 CHANGELOG section)
+
 ## v0.2.1 - 2026-08-05
 
 **Provenance**: hand-cut into oj-claude, mirrored to source in juntospec (`D32-execution-models.md` section 6 Minimum-Model Floor; `M16-derivation-architecture.md` section 3 platform-capability schema `model_policy`; `platform-contract.yaml` keep_list anchor refresh) and juntogen (`claude/platform-defaults.yaml`, `claude/steps/step-00-platform-ingestion.md`, `claude/steps/step-04-reference-files.md`). Regen remains blocked upstream (BL-025-m.3), so the established hand-cut mechanism is used with the source kept in lockstep so a future regen reproduces it. Source commits: juntospec `d21c06d`, juntogen `d5c216c`. Scope: one operator-tunable model-selection policy knob, default-off.
