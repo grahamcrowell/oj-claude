@@ -1394,13 +1394,29 @@ cmd_model_policy() {
     done
   fi
 
+  # Literal membership test. Deliberately NOT grep: the needle is caller-supplied,
+  # and interpolating it into a pattern makes any regex metacharacter in a model
+  # id match something it should not (a "." would wildcard, so `claude-opus.5`
+  # would falsely match a denied `claude-opus-5`). That fails closed rather than
+  # open, but a false deny is still wrong. Compare literally instead.
+  _csv_contains() {
+    local csv="$1" needle="$2" item
+    local IFS=','
+    for item in $csv; do
+      item="${item#"${item%%[![:space:]]*}"}"   # ltrim
+      item="${item%"${item##*[![:space:]]}"}"   # rtrim
+      [[ "$item" == "$needle" ]] && return 0
+    done
+    return 1
+  }
+
   if [[ -n "$check_model" ]]; then
     # Denied wins over allowed: a deny-list is a prohibition, not a preference.
-    if [[ -n "$denied_models" ]] && printf '%s' ",$denied_models," | grep -q "[,[:space:]]${check_model}[,[:space:]]"; then
+    if [[ -n "$denied_models" ]] && _csv_contains "$denied_models" "$check_model"; then
       printf '{"model":"%s","permitted":false,"reason":"denied_models","source":"%s"}\n' "$check_model" "$source"
       return 1
     fi
-    if [[ -n "$allowed_models" ]] && ! printf '%s' ",$allowed_models," | grep -q "[,[:space:]]${check_model}[,[:space:]]"; then
+    if [[ -n "$allowed_models" ]] && ! _csv_contains "$allowed_models" "$check_model"; then
       printf '{"model":"%s","permitted":false,"reason":"not_in_allowed_models","source":"%s"}\n' "$check_model" "$source"
       return 1
     fi
