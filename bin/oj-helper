@@ -1318,6 +1318,114 @@ cmd_resolve_path() {
 }
 
 # ────────────────────────────────────────────────────────────────────
+# model-policy — echo the EFFECTIVE model policy as JSON.
+#
+# The plugin ships a generic policy knob with EMPTY allow/deny lists. It has to:
+# the plugin is a general artifact other organizations install, so naming a
+# model in the shipped defaults would impose one org's procurement policy on
+# every adopter (Axiom 7 — no org-specific content in core files). Having the
+# knob is generic; filling it in is org-specific.
+#
+# So the VALUE lives adopter-side, in `<root>/.claude/oj-model-policy.env`,
+# resolved here. Same shape as the per-key path overrides that resolve-path
+# reads from `<root>/.claude/oj-paths.env`. An operator writes, e.g.:
+#
+#     denied_models=claude-fable-5
+#     min_effort_tier=implementation
+#
+# and it survives `/plugin` upgrades, because it is in their repo rather than
+# in the read-only marketplace cache.
+#
+# USAGE:
+#   oj-helper model-policy [--workspace PATH]
+#   oj-helper model-policy --check <api-id> [--workspace PATH]
+#
+# --check exits 0 if the model is permitted, 1 if denied. Always exits 0 in the
+# plain form (Axiom 8 — never block on the probe itself).
+# ────────────────────────────────────────────────────────────────────
+cmd_model_policy() {
+  local explicit_workspace="" check_model=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --workspace) explicit_workspace="${2:-}"; shift 2 ;;
+      --check)     check_model="${2:-}"; shift 2 ;;
+      --*)         die "model-policy: unknown flag: $1" ;;
+      *)           die "model-policy: unexpected argument: $1" ;;
+    esac
+  done
+
+  local root=""
+  if [[ -n "$explicit_workspace" ]]; then
+    [[ -d "$explicit_workspace" ]] || die "model-policy: --workspace path does not exist: $explicit_workspace"
+    root="$(cd "$explicit_workspace" && pwd)"
+  else
+    local osr="${OJ_STATE_ROOT:-}"
+    osr="${osr%/.claude/local}"
+    osr="${osr%/.claude}"
+    if [[ -n "$osr" && -d "$osr" ]]; then
+      root="$(cd "$osr" && pwd)"
+    else
+      local dir="$PWD"
+      while [[ "$dir" != "/" ]]; do
+        if [[ -d "$dir/.claude" ]]; then root="$dir"; break; fi
+        dir="$(dirname "$dir")"
+      done
+      [[ -n "$root" ]] || root="$PWD"
+    fi
+  fi
+
+  # Shipped defaults. Kept in sync with platform-defaults.yaml
+  # platform.model_policy; deliberately NOT parsed out of the YAML, because
+  # nothing dereferences that file at runtime and pretending otherwise would
+  # overstate what this command reads.
+  local default_model="opus"
+  local allowed_models=""
+  local denied_models=""
+  local min_effort_tier="routine"
+
+  local override_file="$root/.claude/oj-model-policy.env"
+  local source="plugin-defaults"
+  if [[ -f "$override_file" ]]; then
+    source="$override_file"
+    local k v
+    for k in default_model allowed_models denied_models min_effort_tier; do
+      v="$(grep -E "^[[:space:]]*${k}[[:space:]]*=" "$override_file" 2>/dev/null | tail -n1 | sed -E "s/^[[:space:]]*${k}[[:space:]]*=[[:space:]]*//; s/[[:space:]]*\$//")" || true
+      [[ -n "$v" ]] && printf -v "$k" '%s' "$v"
+    done
+  fi
+
+  if [[ -n "$check_model" ]]; then
+    # Denied wins over allowed: a deny-list is a prohibition, not a preference.
+    if [[ -n "$denied_models" ]] && printf '%s' ",$denied_models," | grep -q "[,[:space:]]${check_model}[,[:space:]]"; then
+      printf '{"model":"%s","permitted":false,"reason":"denied_models","source":"%s"}\n' "$check_model" "$source"
+      return 1
+    fi
+    if [[ -n "$allowed_models" ]] && ! printf '%s' ",$allowed_models," | grep -q "[,[:space:]]${check_model}[,[:space:]]"; then
+      printf '{"model":"%s","permitted":false,"reason":"not_in_allowed_models","source":"%s"}\n' "$check_model" "$source"
+      return 1
+    fi
+    printf '{"model":"%s","permitted":true,"source":"%s"}\n' "$check_model" "$source"
+    return 0
+  fi
+
+  json_list() {
+    local csv="$1" out="" item
+    [[ -z "$csv" ]] && { printf '[]'; return; }
+    local IFS=','
+    for item in $csv; do
+      item="$(printf '%s' "$item" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+      [[ -z "$item" ]] && continue
+      [[ -n "$out" ]] && out="$out,"
+      out="$out\"$item\""
+    done
+    printf '[%s]' "$out"
+  }
+
+  printf '{"default_model":"%s","allowed_models":%s,"denied_models":%s,"min_effort_tier":"%s","source":"%s"}\n' \
+    "$default_model" "$(json_list "$allowed_models")" "$(json_list "$denied_models")" "$min_effort_tier" "$source"
+}
+
+# ────────────────────────────────────────────────────────────────────
 # Dispatcher
 # ────────────────────────────────────────────────────────────────────
 
@@ -1327,6 +1435,7 @@ case "${1:-}" in
   migrate-legacy)      shift; cmd_migrate_legacy "$@" ;;
   feedback-path)       shift; cmd_feedback_path "$@" ;;
   resolve-path)        shift; cmd_resolve_path "$@" ;;
+  model-policy)        shift; cmd_model_policy "$@" ;;
   install-hooks)       shift; cmd_install_hooks "$@" ;;
   issue-tracker-check)       shift; cmd_issue_tracker_check "$@" ;;
   issue-tracker-list)        shift; cmd_issue_tracker_list "$@" ;;
@@ -1350,6 +1459,7 @@ SUBCOMMANDS:
   migrate-legacy       Detect Makefile-era install and write migration sentinels
   feedback-path        Output feedback file path for dev mode (OJ_DEVMODE=1)
   resolve-path         Echo the canonical path for a state key (session|backlog|artifacts|state-dir|config|retros)
+  model-policy         Echo the effective model policy as JSON (--check <api-id> to test one model)
   install-hooks        Set core.hooksPath to .githooks in current repo (opt-in)
 
   issue-tracker-check        Validate issue tracker prerequisites and discover project

@@ -205,57 +205,104 @@ You are a [Expert Role Name].
 - **Implementer**: "Highest-risk constraint: [X]"
 - **Reviewer**: "Weakest current claim: [X]"
 
-### Model Selection
+### Model and Effort Selection
 
-Set the `model` parameter on Task tool spawns to match the task's cognitive demand. Sub-agents inherit the manager's model (typically `fable`) if unset — set it explicitly on every spawn; inheriting `fable` is the expensive failure mode. Spawns inherit the session effort — run oj sessions at **`high`** (see Effort below).
+**Every expert runs on the same model: `opus` (`claude-opus-5`).** There is no model choice to make. Set the `model` parameter explicitly on every Task tool spawn anyway - a spawn that omits it inherits whatever the manager happens to be running, which is correct only by coincidence.
 
-| Model | When to Use | Examples |
-|-------|-------------|----------|
-| **sonnet** (tier: routine, cost ratio 0.6×) | Stakeholder analysis compressed to FINDING/TENSION, bounded or compact lenses, mechanical checks | Phase-1 stakeholder analysis, docs-only review, conformance checks, backlog item text |
-| **opus[1m]** (tier: implementation, cost ratio 1.0×) | Routine edits, mechanical transforms, implementation with clear requirements | Doc updates, boilerplate, search-and-replace across files, feature implementation from a spec, code review, test writing |
-| **fable** (tier: reasoning, cost ratio 2.0×) | Ambiguous problems, architectural decisions, novel design | System design, complex debugging, adversarial review, cross-domain synthesis |
+What varies by task is **effort**: depth of reasoning on that one model. The tier vocabulary is unchanged, but a tier now names an effort level rather than a model.
 
-The model roster above - names, tiers, and cost ratios - is defined in `${CLAUDE_PLUGIN_ROOT}/platform-defaults.yaml` under `platform.models`, the single source of truth. This table, the function-first rules, and the per-role defaults below mirror that roster for inline guidance; when the roster changes, update `platform-defaults.yaml` (and re-render), not these tables.
+| Tier | Effort | Cognitive demand | Examples |
+|------|--------|------------------|----------|
+| **routine** (`high`) | `high` | Stakeholder analysis compressed to FINDING/TENSION, bounded or compact lenses, mechanical checks | Phase-1 stakeholder analysis, docs-only review, conformance checks, backlog item text |
+| **implementation** (`xhigh`) | `xhigh` | Implementation with clear requirements, analysis with known patterns | Feature implementation from a spec, code review, test writing, multi-file refactor |
+| **reasoning** (`max`) | `max` | Ambiguous problems, architectural decisions, novel design | System design, complex debugging, adversarial review, cross-domain synthesis |
 
-When in doubt, use the more capable model (sonnet < opus[1m] < fable).
+No cost-ratio column: with one model the tiers do not differ in per-token price, and their real relative cost is thinking-token spend, which is not a published constant. The ordering is what matters, and the ordering holds.
 
-#### Minimum-Model Floor
+The roster, the tier-to-effort bindings, and the model policy are defined in `${CLAUDE_PLUGIN_ROOT}/platform-defaults.yaml` under `platform.models`, `platform.effort_tiers`, and `platform.model_policy` - the single source of truth. The tables here mirror it for inline guidance; when it changes, update that file (and re-render), not these tables.
 
-A configurable floor sets the lowest tier any spawn may run on. It is defined in `${CLAUDE_PLUGIN_ROOT}/platform-defaults.yaml` under `platform.model_policy.min_model_tier` (the single source of truth; this prose mirrors it and re-renders on a policy change). The value is a tier name - `routine`, `implementation`, or `reasoning` (ordering: routine < implementation < reasoning) - **currently `routine`**.
+When in doubt, use the higher tier.
 
-Apply the floor as the **last step** of model selection, after the function-first rules and per-role defaults below have resolved a tier: if the resolved tier is below the floor, raise it to the floor; otherwise leave it unchanged. The floor is a lower bound only - it never lowers a selection, so every escalation (reviewer slot, Complex-tier lead, domain-decisive-risk specialist) still stands. With the floor at `routine` no spawn is bumped and selection is exactly as the rules below specify; raising it to `implementation` bumps routine spawns (Phase-1 analysts, docs-only / bounded lenses, the Technical Writer default) up to `opus[1m]`; raising it to `reasoning` runs every spawn on `fable`.
+#### Where Effort Actually Takes Effect
+
+**Read this before acting on the rules below.** On Claude Code, effort is a **session-level** setting, not a spawn parameter. The Task tool's parameters are `description`, `model`, `subagent_type`, and `prompt` - there is no effort argument.
+
+So the manager applies effort by **engagement tier**, once, at triage:
+
+| Engagement tier | Session effort |
+|-----------------|----------------|
+| Simple | `high` |
+| Moderate | `xhigh` |
+| Complex | `max` |
+
+Raise it if triage re-classifies an engagement upward mid-run. The setting is `effortLevel` in `settings.json`, equivalently the user's `/effort`.
+
+**Do not claim per-spawn effort control.** Writing "run this at max effort" into a spawn prompt documents intent; it does not set a parameter, and presenting it as enforcement is a lie to whoever reads the transcript. The function-first rules below are real guidance about *which spawns deserve the session's attention budget* - they are not a knob.
+
+*(The rules are written per spawn because other generator targets do expose a per-spawn effort argument. On those targets they apply directly. They degrade here rather than being deleted.)*
+
+#### Minimum-Effort Floor
+
+A configurable floor sets the lowest tier any spawn may run at. It is defined in `${CLAUDE_PLUGIN_ROOT}/platform-defaults.yaml` under `platform.model_policy.min_effort_tier` (the single source of truth; this prose mirrors it and re-renders on a policy change). The value is a tier name - `routine`, `implementation`, or `reasoning` (ordering: routine < implementation < reasoning) - **currently `routine`**.
+
+Apply the floor as the **last step** of selection, after the function-first rules and per-role defaults below have resolved a tier: if the resolved tier is below the floor, raise it to the floor; otherwise leave it unchanged. The floor is a lower bound only - it never lowers a selection, so every escalation (reviewer slot, Complex-tier lead, domain-decisive-risk specialist) still stands. With the floor at `routine` nothing is bumped. Raising it to `implementation` lifts routine spawns to `xhigh`; raising it to `reasoning` puts everything at `max`.
+
+Because effort binds per session here, the floor is applied to the engagement-tier-derived session effort - that is where selection actually resolves. It was renamed from *minimum-model floor*: with one model a floor can no longer raise capability, only reasoning depth.
+
+#### Model Policy and the Adopter Override
+
+`platform.model_policy` in `${CLAUDE_PLUGIN_ROOT}/platform-defaults.yaml` carries `default_model` plus `allowed_models` / `denied_models`. **Both lists ship empty, and that is deliberate.** This plugin is installed by other organizations; a model named in the shipped defaults would impose one org's procurement policy on everyone. The knob is generic, the value is not.
+
+An operator sets policy for their own project in `<root>/.claude/oj-model-policy.env`, read at runtime by `oj-helper model-policy`:
+
+```
+denied_models=<api-id your org prohibits>
+min_effort_tier=implementation
+```
+
+(The placeholder is intentional: writing a real model id here would leak one organization's policy into a document every adopter reads.)
+
+That file lives in the adopter's repo, so it survives `/plugin` upgrades. Editing the installed `platform-defaults.yaml` does not work: the install is a read-only marketplace cache that upgrades replace, and nothing dereferences that YAML at runtime anyway - it is a generation-time input, and this prose is the behavioral surface.
+
+Check a model before spawning with `oj-helper model-policy --check <api-id>` (exit 0 permitted, 1 denied). A deny wins over an allow; an empty `allowed_models` means "no allowlist", not "nothing permitted".
 
 #### Function-First Selection Rules
 
-Pick the model per spawn by the spawn's **function** (what the role is doing in this engagement), with per-role defaults as a secondary anchor. The function rules below override the role-default table when they conflict — a role's default tier is the floor for routine engagements, not a ceiling on adversarial or high-risk ones.
+Judge the **effort tier** a spawn warrants by its **function** (what the role is doing in this engagement), with per-role defaults as a secondary anchor. The function rules override the role-default table when they conflict - a role's default tier is the floor for routine engagements, not a ceiling on adversarial or high-risk ones.
 
-- **Adversarial reviewer slot (any role)** → **fable**. The reviewer's output is forwarded verbatim and must break the work; it is the load-bearing critique surface and should run on the strongest tier regardless of the reviewer's default.
-- **Complex-tier lead implementer** → **fable**. Complex-tier work is by definition ambiguous, cross-domain, or high-blast-radius; the lead carries the synthesis weight.
-- **Moderate-tier lead implementer** → **opus[1m]** by default; escalate to **fable** when the implementation is high-risk (novel design, security-sensitive, irreversible migration, or the findings ledger contains an unresolved TENSION the lead must arbitrate).
-- **Phase-1 stakeholder analysts (output compressed to FINDING / TENSION)** → **sonnet**, including bounded or lightweight lenses (e.g., docs-only review, mechanical conformance checks). Their output is compressed before it reaches the implementer — the marginal accuracy of a stronger tier is not load-bearing here.
-- **Specialists engaged on a domain trigger** → **opus[1m]** by default; escalate to **fable** when their domain is the **decisive risk** for the engagement (e.g., Security on an auth/crypto change, SRE on an SLO-impacting change, Data Architect on a destructive migration).
+- **Adversarial reviewer slot (any role)** -> **reasoning** (`max`). The reviewer's output is forwarded verbatim and must break the work; it is the load-bearing critique surface and warrants the deepest reasoning regardless of the reviewer's default.
+- **Complex-tier lead implementer** -> **reasoning** (`max`). Complex-tier work is by definition ambiguous, cross-domain, or high-blast-radius; the lead carries the synthesis weight.
+- **Moderate-tier lead implementer** -> **implementation** (`xhigh`) by default; escalate to **reasoning** (`max`) when the implementation is high-risk (novel design, security-sensitive, irreversible migration, or the findings ledger contains an unresolved TENSION the lead must arbitrate).
+- **Phase-1 stakeholder analysts (output compressed to FINDING / TENSION)** -> **routine** (`high`), including bounded or lightweight lenses (e.g., docs-only review, mechanical conformance checks). Their output is compressed before it reaches the implementer, so extra reasoning depth is not load-bearing here.
+- **Specialists engaged on a domain trigger** -> **implementation** (`xhigh`) by default; escalate to **reasoning** (`max`) when their domain is the **decisive risk** for the engagement (e.g., Security on an auth/crypto change, SRE on an SLO-impacting change, Data Architect on a destructive migration).
+
+On Claude Code these determine where you spend the session's attention, not a per-spawn argument. A Complex engagement already runs at `max`, so the reviewer-slot and Complex-lead rules are satisfied by the engagement setting; the remaining rules tell you which spawns to brief most carefully and scrutinise hardest on handback.
 
 #### Fan-Out Budget
 
 Wide fan-outs are the dominant quota risk — a single research cycle that spawns dozens of agents can exhaust a 5-hour usage window on its own. Research/explain engagements should prefer Simple-tier inline perspective rotation, or cap parallel spawns at **~10 per cycle**. Reserve wider fan-outs for Complex-tier engagements where the parallelism is load-bearing, and prefer sequential depth (one agent following a thread) over breadth when the questions are dependent.
 
-#### Per-Role Default Model (adjustable; function rules always win)
+#### Per-Role Default Tier (adjustable; function rules always win)
 
 These are **starting defaults** for the role when no function rule applies. Treat them as adjustable per engagement — the function rules above always take precedence when any of them applies (reviewer-slot, Complex-tier lead, Moderate-tier lead, Phase-1 analyst, or domain-trigger specialist). The per-role default below fires only when no function rule matches the spawn.
 
-| Default Model | Roles |
-|---------------|-------|
-| **fable** | Distinguished Engineer, Security Engineer, Site Reliability Engineer, Engineering Consultant |
-| **opus[1m]** | Software Engineer, Solutions Architect, DevOps Engineer, Test Engineer, Data Architect, Data Scientist, ML Engineer, Enterprise Architect |
-| **sonnet** | Business Analyst, Product Manager, Executive Leadership Coach, Technical Writer |
+| Default Tier | Roles |
+|--------------|-------|
+| **reasoning** (`max`) | Distinguished Engineer, Security Engineer, Site Reliability Engineer, Engineering Consultant |
+| **implementation** (`xhigh`) | Software Engineer, Solutions Architect, DevOps Engineer, Test Engineer, Data Architect, Data Scientist, ML Engineer, Enterprise Architect |
+| **routine** (`high`) | Business Analyst, Product Manager, Executive Leadership Coach, Technical Writer |
 
-Anchor example: `${CLAUDE_PLUGIN_ROOT}/reference/worked-examples.md` Example 2 (Moderate-tier rate-limiting) sets `model: sonnet` on the stakeholder analysts, `model: opus[1m]` on the lead implementer, and `model: fable` on the adversarial reviewer — the function rules above are the general form of that pattern.
+Anchor example: `${CLAUDE_PLUGIN_ROOT}/reference/worked-examples.md` Example 2 (Moderate-tier rate-limiting). Every spawn there carries the same `model`; what differs is the depth of reasoning each warrants - analysts at routine (`high`), the lead at implementation (`xhigh`), the adversarial reviewer at reasoning (`max`). Because that engagement is Moderate, the session runs at `xhigh` and the tiers describe attention rather than separate settings.
 
-Second anchor (reviewer-slot wins regardless of role default): a Senior Technical Writer (role default: `sonnet`) or a Senior Software Engineer (role default: `opus[1m]`) spawned as the adversarial reviewer runs on **`fable`** — the reviewer-slot rule wins over the role default. The reviewer slot is `fable` because of its function, not because of the reviewer's role; do not read Example 2's Security-Engineer-on-`fable` reviewer as that role's default.
+Second anchor (reviewer-slot wins regardless of role default): a Senior Technical Writer (role default: routine (`high`)) or a Senior Software Engineer (role default: implementation (`xhigh`)) spawned as the adversarial reviewer is a **reasoning** (`max`) spawn - the reviewer-slot rule wins over the role default. The slot takes that tier because of its function, not the reviewer's role.
 
 #### Effort
 
-Spawns inherit the session effort — run oj sessions at **`high`**, and escalate the session to `xhigh` only for Complex-tier engagements (the user's `/effort` setting applies session-wide). On the current model generation, `high` retains near-ceiling accuracy while materially cutting thinking-token spend and turn latency; `xhigh` is the opt-in for the hardest work, not the default. Per-expert effort is not controllable in the current architecture: expert profiles are injected into `general-purpose` Task spawns via the `SubagentStart` hook (`oj-helper inject-profile`), and that spawn surface exposes no per-invocation effort knob — frontmatter on `${CLAUDE_PLUGIN_ROOT}/agents/*.md` is a no-op because the Task tool does not read those files as subagent definitions. Do not fabricate per-expert effort control; per-expert effort tiering would require re-architecting experts as native, distinct subagent types — defer.
+Effort is **session-level** on this platform and is set from the engagement tier: `high` for Simple, `xhigh` for Moderate, `max` for Complex (see Where Effort Actually Takes Effect above). Raise it if triage re-classifies upward mid-run.
+
+Per-expert effort is not controllable here, and the reason is structural rather than an oversight: expert profiles are injected into `general-purpose` Task spawns by the `SubagentStart` hook (`oj-helper inject-profile`), and the Task tool does not read `${CLAUDE_PLUGIN_ROOT}/agents/*.md` as subagent definitions - frontmatter there is a no-op for spawn configuration, and that surface exposes no per-invocation effort argument. Do not fabricate per-expert effort control. Making it real would require re-architecting experts as native, distinct subagent types; that is deferred.
+
+One hard constraint: **do not disable thinking while effort is `xhigh` or `max`** - the API rejects that combination outright, which would break every Moderate and Complex engagement. Thinking is on by default, so this only bites an explicit opt-out.
 
 *Design intent (Axiom 4 — Token Efficiency)*: compact profiles at Simple tier, tier-aware context loading, output compression, and model selection by cognitive demand keep routine work cheap so that Complex work can afford maximum scrutiny.
 
