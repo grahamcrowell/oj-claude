@@ -280,4 +280,4 @@ Mechanism follows the BL-025 materialized-view precedent: `platform-defaults.yam
 
 ## v0.0.1 — 2026-04-17
 
-Initial hand-cut baseline. Tagged `oj-claude-v0.0.1-handcut-baseline`.
+Initial hand-cut baseline. Recorded at the time as tagged `oj-claude-v0.0.1-handcut-baseline`; that tag does not exist on the remote or locally (checked 2026-08-09), so this release has no tag and no release object. It predates the `oj--vN.N.N` convention and is left as-is rather than back-tagged - inventing a tag for a commit nobody pinned would be worse than an honest gap.
