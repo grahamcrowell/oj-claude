@@ -53,7 +53,7 @@ Quick lookup of recurring task types and the stakeholders they typically require
 |--------------|-------------------------|
 | System architecture / new service design | Solutions Architect, Enterprise Architect, SRE |
 | Security review / threat modeling | Security Engineer, SRE |
-| Data pipeline / ETL design | Data Architect, DevOps Engineer |
+| Data pipeline / ETL design | Data Architect, DevOps Engineer, SRE |
 | ML feature / model deployment | ML Engineer, Data Scientist, SRE |
 | API design / public contract | Solutions Architect, Technical Writer, Security Engineer |
 | Infrastructure migration | DevOps Engineer, SRE, Solutions Architect |

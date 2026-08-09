@@ -233,13 +233,18 @@ for s in show-backlog health-check; do
 done
 
 echo "-- C7: version --"
-assert "T-B7.1 VERSION == 0.2.1" "$([[ "$(cat VERSION)" == "0.2.1" ]] && echo ok || echo no)"
-assert "T-B7.2 plugin.json version == 0.2.1" \
-  "$([[ "$(jq -r .version .claude-plugin/plugin.json)" == "0.2.1" ]] && echo ok || echo no)"
+assert "T-B7.1 VERSION == 0.4.0" "$([[ "$(cat VERSION)" == "0.4.0" ]] && echo ok || echo no)"
+assert "T-B7.2 plugin.json version == 0.4.0" \
+  "$([[ "$(jq -r .version .claude-plugin/plugin.json)" == "0.4.0" ]] && echo ok || echo no)"
 assert "T-B7.3 CHANGELOG has v0.1.0 section" "$(hasF CHANGELOG.md '## v0.1.0')"
 assert "T-B7.4 CHANGELOG has v0.1.1 section" "$(hasF CHANGELOG.md '## v0.1.1')"
 assert "T-B7.5 CHANGELOG has v0.2.0 section" "$(hasF CHANGELOG.md '## v0.2.0')"
 assert "T-B7.6 CHANGELOG has v0.2.1 section" "$(hasF CHANGELOG.md '## v0.2.1')"
+assert "T-B7.7 CHANGELOG has v0.3.0 section" "$(hasF CHANGELOG.md '## v0.3.0')"
+assert "T-B7.8 CHANGELOG has v0.4.0 section" "$(hasF CHANGELOG.md '## v0.4.0')"
+assert "T-B7.9 VERSION agrees with plugin.json" \
+  "$([[ "$(cat VERSION)" == "$(jq -r .version .claude-plugin/plugin.json)" ]] && echo ok || echo no)" \
+  "VERSION and .claude-plugin/plugin.json must not drift"
 
 # ══════════════════════════════════════════════════════════════════════
 # Tier D — assessment recommendation traceability (14 items, P1-P5)
@@ -318,8 +323,16 @@ assert "T-D12b (rec 12) expert-index.md free of stale 'senior-sre.md'" \
 # rec 13 PARTIAL — names gone from injected CORE (win); still prose in on-demand ref
 assert "T-D13a (rec 13) CONDUCTOR core free of hard-coded model names" \
   "$(grep -qE 'sonnet|opus|fable' CONDUCTOR.md && echo no || echo ok)"
-EP_MODELS=$(grep -cE 'sonnet|opus|fable' reference/execution-protocol.md || true)
-skip "T-D13b (rec 13, documented remainder) model names still prose in execution-protocol.md (${EP_MODELS} refs, not sourced from platform-defaults.yaml)"
+# T-D13b was a documented remainder while three models were selectable and the
+# protocol prose named all of them. With a single default model, naming it is
+# intentional - what must NOT appear is a non-default model presented as a
+# choice, since there is no longer a selection to make.
+assert "T-D13b (rec 13) execution-protocol.md names no non-default model" \
+  "$(grep -qE '(^|[^a-zA-Z0-9_])(sonnet|fable|haiku|mythos)([^a-zA-Z0-9_]|$)' reference/execution-protocol.md && echo no || echo ok)" \
+  "execution-protocol.md must not offer a model other than platform.model_policy.default_model"
+assert "T-D13c effort ladder documented in execution-protocol.md" \
+  "$(grep -q 'Where Effort Actually Takes Effect' reference/execution-protocol.md && echo ok || echo no)" \
+  "the session-vs-per-spawn effort binding must be stated where the manager will read it"
 
 # rec 14 DONE — covered by C6
 pass "T-D14 (rec 14 DONE) context: fork on read-only skills — see T-B6.2"
