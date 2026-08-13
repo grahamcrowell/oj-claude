@@ -101,7 +101,7 @@ Read STRONGEST OBJECTION carefully. It is *not* boilerplate. If it sounds boiler
 
 ## 7. Advanced: Backlog Sprint
 
-For projects with `.claude/BACKLOG.md`, run:
+For projects with a file-backed backlog — `oj-helper resolve-path backlog` names it, and it is `.claude/BACKLOG.md` unless the project relocated or split it — run:
 
 ```bash
 claude '/run-task'
@@ -114,5 +114,5 @@ The Manager picks the next item, triages it, delegates to experts, enforces peer
 - [WHY.md](../WHY.md) — honest tradeoffs and when OpenJunto is (and isn't) worth it
 - [CONDUCTOR.md](../CONDUCTOR.md) — the full Manager coordination protocol
 - [reference/expert-index.md](../reference/expert-index.md) — expert roster and engagement triggers
-- Try `/run-task` on a project with a `.claude/BACKLOG.md`
+- Try `/run-task` on a project with a file-backed backlog
 - Run the same real task through single-agent Claude and through OpenJunto — compare the output

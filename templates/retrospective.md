@@ -5,7 +5,18 @@
 > **Participants**: [Experts involved]
 > **Facilitator**: Senior Technical Project Manager
 
-<!-- Use this template for Complex tier retrospectives (required) and optionally for Moderate tier engagements when significant issues arose. Target completion time: 15 minutes. -->
+<!-- Use this template for Complex tier retrospectives (required) and optionally for Moderate tier engagements when significant issues arose. Target completion time: 15 minutes.
+
+     WHERE THIS GOES: `oj-helper resolve-path retros` (default
+     `.claude/archive/retros/`). A retrospective is a point-in-time record, so it
+     belongs in a history area — NOT at a node as design or decision content.
+
+     The converse matters more: if the retrospective produces new intent that
+     should bind future work, that intent does NOT stay here. File it by its own
+     type (`oj-helper resolve-path decisions|design --node <relpath>`) and leave a
+     pointer. Content filed only as a review becomes uncitable — it stops being
+     the answer to "what is the current design?" while still being that answer.
+     See reference/file-patterns.md § Filing Rule, "A review is not a design". -->
 
 ---
 
@@ -139,7 +150,7 @@ Before finalizing, verify:
 
 ### Follow-Through
 
-- Action items should be tracked in BACKLOG.md or the configured issue tracker.
+- Action items should be tracked in the resolved backlog (`oj-helper resolve-path backlog`) or the configured issue tracker — not left in this file, where nothing will pick them up.
 - Profile updates should be implemented in subsequent sessions.
 - Process updates should be proposed to the user for approval before being written to CLAUDE.md or reference files.
 

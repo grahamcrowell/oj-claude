@@ -11,6 +11,20 @@
 
 <!-- Scope: org-level. Per-project equivalent: [project]/.claude/reference/validated-facts.md -->
 
+<!-- NAMING NOTE (direction of travel, not a rename to perform now).
+     The `validated-*` prefix puts the provenance in the FILENAME, which forces
+     an awkward choice for anything not yet validated: either it goes in a file
+     whose name asserts otherwise, or it goes nowhere. The `facts/` convention
+     under the hierarchy profile (`profiles/hierarchy/facts/`) puts provenance in
+     a per-row MARKER instead -- MEASURED / DERIVED / ASSERTED-UNVERIFIED -- so
+     an unverified value has an honest home and a stated verification path, and
+     the file is named for its domain (`<domain>-facts.md`) rather than its
+     confidence level.
+     That is the direction of travel if this file is ever restructured. It is
+     NOT urgent, and this file's own "Evidence required" discipline is the same
+     rule enforced a different way. Do not rename as a drive-by: the org/project
+     boundary in D80 § Reference File Scoping cites these names. -->
+
 ## Authenticated Services
 
 <!-- Org-wide service registry: APIs, databases, messaging platforms that all projects may interact with.

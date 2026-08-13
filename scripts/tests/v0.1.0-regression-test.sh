@@ -233,18 +233,25 @@ for s in show-backlog health-check; do
 done
 
 echo "-- C7: version --"
-assert "T-B7.1 VERSION == 0.4.0" "$([[ "$(cat VERSION)" == "0.4.0" ]] && echo ok || echo no)"
-assert "T-B7.2 plugin.json version == 0.4.0" \
-  "$([[ "$(jq -r .version .claude-plugin/plugin.json)" == "0.4.0" ]] && echo ok || echo no)"
+assert "T-B7.1 VERSION == 0.5.0" "$([[ "$(cat VERSION)" == "0.5.0" ]] && echo ok || echo no)"
+assert "T-B7.2 plugin.json version == 0.5.0" \
+  "$([[ "$(jq -r .version .claude-plugin/plugin.json)" == "0.5.0" ]] && echo ok || echo no)"
 assert "T-B7.3 CHANGELOG has v0.1.0 section" "$(hasF CHANGELOG.md '## v0.1.0')"
 assert "T-B7.4 CHANGELOG has v0.1.1 section" "$(hasF CHANGELOG.md '## v0.1.1')"
 assert "T-B7.5 CHANGELOG has v0.2.0 section" "$(hasF CHANGELOG.md '## v0.2.0')"
 assert "T-B7.6 CHANGELOG has v0.2.1 section" "$(hasF CHANGELOG.md '## v0.2.1')"
 assert "T-B7.7 CHANGELOG has v0.3.0 section" "$(hasF CHANGELOG.md '## v0.3.0')"
 assert "T-B7.8 CHANGELOG has v0.4.0 section" "$(hasF CHANGELOG.md '## v0.4.0')"
+assert "T-B7.10 CHANGELOG has v0.5.0 section" "$(hasF CHANGELOG.md '## v0.5.0')"
 assert "T-B7.9 VERSION agrees with plugin.json" \
   "$([[ "$(cat VERSION)" == "$(jq -r .version .claude-plugin/plugin.json)" ]] && echo ok || echo no)" \
   "VERSION and .claude-plugin/plugin.json must not drift"
+# The CHANGELOG's newest section must name the shipped VERSION. T-B7.9 catches
+# VERSION/plugin.json drift but both can agree on a version the CHANGELOG never
+# documents, which is how a release ships with no notes to publish from.
+assert "T-B7.11 newest CHANGELOG section == VERSION" \
+  "$([[ "$(grep -m1 -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sed 's/^## v//')" == "$(cat VERSION)" ]] && echo ok || echo no)" \
+  "the top CHANGELOG section must document the version being shipped"
 
 # ══════════════════════════════════════════════════════════════════════
 # Tier D — assessment recommendation traceability (14 items, P1-P5)

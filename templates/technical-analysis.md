@@ -1,6 +1,17 @@
 # Technical Analysis: [TOPIC]
 
-<!-- Use this template for investigations, evaluations, and technical deep dives. Copy to `.claude/artifacts/analysis/` and fill in each section. Delete bracketed placeholders as you go. -->
+<!-- Use this template for investigations, evaluations, and technical deep dives.
+
+     WHERE THIS GOES: classify the document by type, then file it by type — do not
+     assume a dump directory. An analysis has no category key of its own, so it
+     lands under the artifacts root (`oj-helper resolve-path artifacts`, default
+     `.claude/artifacts/analysis/`). But if what you are writing is really a
+     DESIGN or a set of DECISIONS rather than an investigation, resolve that
+     type's key instead (`oj-helper resolve-path design --node <relpath>`) and
+     file it at the owning node, where it stays citable.
+     Full procedure: reference/file-patterns.md § Filing Rule.
+
+     Fill in each section. Delete bracketed placeholders as you go. -->
 
 ## Summary
 

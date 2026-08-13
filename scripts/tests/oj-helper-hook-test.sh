@@ -69,6 +69,61 @@
 #               worktree present; second run asserts exit 0 + CLAUDE.md
 #               content unchanged.
 #
+# Scenarios (resolve-path):
+#   S16 — resolve-path: canonical state-path resolution under BOTH layout
+#         profiles. Added as a NEW scenario rather than as edits to
+#         existing assertions, so the pre-profile contract stays pinned
+#         while the new one is added — a harness that only knows one
+#         layout is how the next layout change breaks silently.
+#         S16a: flat profile (no oj-paths.env) — all six state keys
+#               resolve to the documented defaults, exit 0.
+#         S16b: flat profile — all six CATEGORY keys exit 3 (known key,
+#               unset in this layout) and print NOTHING on stdout. Exit 3
+#               must stay distinguishable from the exit 1 an unknown key
+#               gets, because callers branch on that difference.
+#         S16c: unknown key / unknown flag / extra positional still exit
+#               non-zero (FALSIFIER — adding keys must not soften the
+#               unknown-key guard into a pass).
+#         S16d: hierarchy profile — category keys resolve to
+#               <node>/<key>.md (facts -> <node>/facts), and the six state
+#               keys are UNCHANGED by the profile.
+#         S16e: --node normalization — plain, `.claude/`-prefixed,
+#               trailing-slash and `./`-prefixed forms all name the same
+#               node; bare `.claude` means the root node; --node is
+#               ignored for state keys and in flat layout.
+#         S16f: a typo'd layout profile is a hard error (exit 1), not a
+#               silent fall back to flat.
+#         S16g: per-key override precedence + the missing-`.claude/`
+#               prefix WARNING. Asserts the warning lands on stderr ONLY
+#               (stdout stays exactly one path), an absolute override is
+#               honored silently, and an override wins over BOTH the flat
+#               "unset" state and a hierarchy default.
+#
+# Scenarios (backlog-list / backlog-lint):
+#   S17 — plural-aware backlog. `resolve-path backlog` answers "where to
+#         WRITE" and must keep returning exactly one path; backlog-list
+#         answers "what exists to READ" and returns zero or more.
+#         S17a: single-file workspace — backlog-list emits the one
+#               resolved BACKLOG.md; lint reports OK, exit 0.
+#         S17b: no backlog at all — list exits 0 with EMPTY stdout and
+#               lint degrades gracefully (an empty backlog set is a
+#               legitimate answer, not an error).
+#         S17c: plural workspace via `backlog-glob=` — list emits every
+#               match sorted, while `resolve-path backlog` STILL returns
+#               exactly one path (the contract nine call sites depend on).
+#         S17d: lint catches all three defect classes — duplicate HTML
+#               anchor, duplicate item id within one file, and item-id
+#               COLLISION across files — and exits 1 so a caller can gate.
+#         S17e: FALSIFIER — a mere mention of an id in prose must NOT be
+#               counted as a second definition (only the `- **ID**`
+#               schema form defines), and a clean plural set must exit 0.
+#               Without this, lint would cry wolf on every cross-reference.
+#         S17f: FALSIFIER — a `backlog-glob` matching nothing must emit
+#               NOTHING, not the literal unexpanded pattern as a path.
+#         S17g: `id-index` is override-only — exit 3 with advice that does
+#               NOT suggest layout=hierarchy (a profile switch cannot fix
+#               an override-only key), and resolves when overridden.
+#
 # Test isolation: each scenario builds a private tempdir T and
 # rebinds HOME, CLAUDE_PLUGIN_ROOT, CLAUDE_PLUGIN_DATA, and
 # XDG_CONFIG_HOME beneath it. Cleanup is a SINGLE-ARG EXIT trap
@@ -1031,6 +1086,441 @@ scenario_s15_workstream_new() {
     rm -rf "$T"; trap - EXIT
 }
 
+# ────────────────────────────────────────────────────────────────────
+# S16 — resolve-path under both layout profiles
+# ────────────────────────────────────────────────────────────────────
+# resolve-path is pure resolution: it never creates the path it prints, so
+# these scenarios assert on the STRING and the EXIT CODE only, and
+# deliberately do not mkdir the targets. --workspace pins the root so no
+# assertion depends on the harness's own cwd.
+
+# rp — run resolve-path with an isolated env, capturing stdout/stderr/rc
+# into caller-visible globals. Cannot use run_isolated: that helper writes
+# into $T/stdout, and S16 compares several invocations within one tempdir.
+RP_OUT=""; RP_ERR=""; RP_RC=0
+rp() {
+    local T="$1"; shift
+    RP_RC=0
+    RP_OUT="$(HOME="$T/home" XDG_CONFIG_HOME="$T/xdg" OJ_STATE_ROOT="" \
+        "${OJ_HELPER}" resolve-path "$@" 2>"$T/rp_err")" || RP_RC=$?
+    RP_ERR="$(cat "$T/rp_err")"
+}
+
+scenario_s16_resolve_path() {
+    local T; T=$(mktemp -d -t oj-hook-s16-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/xdg" "$T/flat/.claude" "$T/hier/.claude" \
+             "$T/bad/.claude" "$T/ovr/.claude"
+    local flat="$T/flat" hier="$T/hier" bad="$T/bad" ovr="$T/ovr"
+
+    # ---- S16a: flat profile, state keys resolve to documented defaults ----
+    local -a state_keys=(session backlog artifacts state-dir config retros)
+    local -a state_expected=(
+        ".claude/state/session.md"
+        ".claude/BACKLOG.md"
+        ".claude/artifacts"
+        ".claude/state"
+        ".claude"
+        ".claude/archive/retros"
+    )
+    local i key want
+    for i in "${!state_keys[@]}"; do
+        key="${state_keys[$i]}"
+        want="${flat}/${state_expected[$i]}"
+        rp "$T" "$key" --workspace "$flat"
+        if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "$want" ]; then
+            assert_one "S16a flat: ${key} -> ${state_expected[$i]}" "ok"
+        else
+            assert_one "S16a flat: ${key} -> ${state_expected[$i]}" "fail" "rc=$RP_RC out=[$RP_OUT] want=[$want]"
+        fi
+    done
+
+    # ---- S16b: flat profile, category keys exit 3 with empty stdout ----
+    local -a cat_keys=(decisions facts open-questions requirements design plan)
+    for key in "${cat_keys[@]}"; do
+        rp "$T" "$key" --workspace "$flat"
+        if [ "$RP_RC" = "3" ] && [ -z "$RP_OUT" ]; then
+            assert_one "S16b flat: ${key} exits 3 with empty stdout (unset in this layout)" "ok"
+        else
+            assert_one "S16b flat: ${key} exits 3 with empty stdout (unset in this layout)" "fail" "rc=$RP_RC out=[$RP_OUT]"
+        fi
+    done
+    # The exit-3 advisory must name the key and the remedy, else a caller
+    # hitting it has nothing to act on.
+    rp "$T" decisions --workspace "$flat"
+    if printf '%s' "$RP_ERR" | grep -qF "layout=hierarchy"; then
+        assert_one "S16b flat: exit-3 advisory names the layout=hierarchy remedy" "ok"
+    else
+        assert_one "S16b flat: exit-3 advisory names the layout=hierarchy remedy" "fail" "stderr=[$RP_ERR]"
+    fi
+
+    # ---- S16c: FALSIFIER — bad input still fails, and NOT with exit 3 ----
+    rp "$T" bogus-key --workspace "$flat"
+    if [ "$RP_RC" = "1" ]; then
+        assert_one "S16c unknown key: exit 1 (distinct from the exit 3 an unset known key gets)" "ok"
+    else
+        assert_one "S16c unknown key: exit 1 (distinct from the exit 3 an unset known key gets)" "fail" "rc=$RP_RC out=[$RP_OUT] stderr=[$RP_ERR]"
+    fi
+    rp "$T" decisions --bogus-flag x --workspace "$flat"
+    if [ "$RP_RC" != "0" ]; then
+        assert_one "S16c unknown flag: exits non-zero" "ok"
+    else
+        assert_one "S16c unknown flag: exits non-zero" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+    rp "$T" decisions extra-positional --workspace "$flat"
+    if [ "$RP_RC" != "0" ]; then
+        assert_one "S16c extra positional: exits non-zero" "ok"
+    else
+        assert_one "S16c extra positional: exits non-zero" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+
+    # ---- S16d: hierarchy profile ----
+    printf 'layout=hierarchy\n' > "$hier/.claude/oj-paths.env"
+    local -a hier_expected=(
+        ".claude/decisions.md"
+        ".claude/facts"
+        ".claude/open-questions.md"
+        ".claude/requirements.md"
+        ".claude/design.md"
+        ".claude/plan.md"
+    )
+    for i in "${!cat_keys[@]}"; do
+        key="${cat_keys[$i]}"
+        want="${hier}/${hier_expected[$i]}"
+        rp "$T" "$key" --workspace "$hier"
+        if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "$want" ]; then
+            assert_one "S16d hierarchy: ${key} -> ${hier_expected[$i]}" "ok"
+        else
+            assert_one "S16d hierarchy: ${key} -> ${hier_expected[$i]}" "fail" "rc=$RP_RC out=[$RP_OUT] want=[$want]"
+        fi
+    done
+    # A taxonomy must not silently relocate session/backlog/artifacts —
+    # moving those is an override's job, not a profile's.
+    for i in "${!state_keys[@]}"; do
+        key="${state_keys[$i]}"
+        want="${hier}/${state_expected[$i]}"
+        rp "$T" "$key" --workspace "$hier"
+        if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "$want" ]; then
+            assert_one "S16d hierarchy: state key ${key} unchanged by profile" "ok"
+        else
+            assert_one "S16d hierarchy: state key ${key} unchanged by profile" "fail" "rc=$RP_RC out=[$RP_OUT] want=[$want]"
+        fi
+    done
+
+    # ---- S16e: --node normalization ----
+    local node_want="${hier}/.claude/proj/sub/design.md"
+    local form
+    for form in "proj/sub" ".claude/proj/sub" "proj/sub/" "./proj/sub"; do
+        rp "$T" design --node "$form" --workspace "$hier"
+        if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "$node_want" ]; then
+            assert_one "S16e --node '${form}' normalizes to the same node" "ok"
+        else
+            assert_one "S16e --node '${form}' normalizes to the same node" "fail" "rc=$RP_RC out=[$RP_OUT] want=[$node_want]"
+        fi
+    done
+    rp "$T" facts --node "proj/sub" --workspace "$hier"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "${hier}/.claude/proj/sub/facts" ]; then
+        assert_one "S16e --node applies to facts as a directory" "ok"
+    else
+        assert_one "S16e --node applies to facts as a directory" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+    rp "$T" design --node ".claude" --workspace "$hier"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "${hier}/.claude/design.md" ]; then
+        assert_one "S16e --node '.claude' means the root node" "ok"
+    else
+        assert_one "S16e --node '.claude' means the root node" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+    # --node must be accepted-and-ignored where it does not apply, so a
+    # caller never has to branch on the profile just to pass it.
+    rp "$T" session --node "proj/sub" --workspace "$hier"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "${hier}/.claude/state/session.md" ]; then
+        assert_one "S16e --node ignored for state keys" "ok"
+    else
+        assert_one "S16e --node ignored for state keys" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+    rp "$T" design --node "proj/sub" --workspace "$flat"
+    if [ "$RP_RC" = "3" ]; then
+        assert_one "S16e --node accepted but does not enable a category key in flat layout" "ok"
+    else
+        assert_one "S16e --node accepted but does not enable a category key in flat layout" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+
+    # ---- S16f: FALSIFIER — a typo'd profile must not degrade to flat ----
+    printf 'layout=heirarchy\n' > "$bad/.claude/oj-paths.env"
+    rp "$T" decisions --workspace "$bad"
+    if [ "$RP_RC" = "1" ] && printf '%s' "$RP_ERR" | grep -qF "unknown layout profile"; then
+        assert_one "S16f typo'd layout profile: exit 1 + 'unknown layout profile' (no silent flat fallback)" "ok"
+    else
+        assert_one "S16f typo'd layout profile: exit 1 + 'unknown layout profile' (no silent flat fallback)" "fail" "rc=$RP_RC stderr=[$RP_ERR]"
+    fi
+
+    # ---- S16g: override precedence + missing-prefix warning ----
+    cat > "$ovr/.claude/oj-paths.env" <<'EOF'
+retros=.claude/history/retros
+decisions=.claude/DECISIONS.md
+backlog=history/backlog.md
+artifacts=/var/tmp/oj-artifacts-s16
+config=.claude
+EOF
+    rp "$T" retros --workspace "$ovr"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "${ovr}/.claude/history/retros" ] && [ -z "$RP_ERR" ]; then
+        assert_one "S16g override with .claude/ prefix: honored, no warning" "ok"
+    else
+        assert_one "S16g override with .claude/ prefix: honored, no warning" "fail" "rc=$RP_RC out=[$RP_OUT] stderr=[$RP_ERR]"
+    fi
+    # An override gives a flat project one category key without making it
+    # adopt the whole hierarchy — this is the escape hatch, so it must work.
+    rp "$T" decisions --workspace "$ovr"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "${ovr}/.claude/DECISIONS.md" ]; then
+        assert_one "S16g override beats the flat 'unset' state for a category key" "ok"
+    else
+        assert_one "S16g override beats the flat 'unset' state for a category key" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+    # The whole point of the warning: it must be visible on stderr AND must
+    # not corrupt stdout, which callers consume as exactly one path.
+    rp "$T" backlog --workspace "$ovr"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "${ovr}/history/backlog.md" ]; then
+        assert_one "S16g override without .claude/ prefix: still honored (warn, do not fail)" "ok"
+    else
+        assert_one "S16g override without .claude/ prefix: still honored (warn, do not fail)" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+    if printf '%s' "$RP_ERR" | grep -qF "does not start with '.claude/'"; then
+        assert_one "S16g missing-prefix override: warning on stderr" "ok"
+    else
+        assert_one "S16g missing-prefix override: warning on stderr" "fail" "stderr=[$RP_ERR]"
+    fi
+    if [ "$(printf '%s\n' "$RP_OUT" | wc -l | tr -d ' ')" = "1" ] && ! printf '%s' "$RP_OUT" | grep -qF "WARNING"; then
+        assert_one "S16g missing-prefix override: stdout stays exactly one path (warning does not leak)" "ok"
+    else
+        assert_one "S16g missing-prefix override: stdout stays exactly one path (warning does not leak)" "fail" "out=[$RP_OUT]"
+    fi
+    # Leaving the state tree on purpose is supported; it must not nag.
+    rp "$T" artifacts --workspace "$ovr"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "/var/tmp/oj-artifacts-s16" ] && [ -z "$RP_ERR" ]; then
+        assert_one "S16g absolute override: honored as-is, silently" "ok"
+    else
+        assert_one "S16g absolute override: honored as-is, silently" "fail" "rc=$RP_RC out=[$RP_OUT] stderr=[$RP_ERR]"
+    fi
+    # `config`'s default is bare `.claude` (no trailing slash) — that shape
+    # is inside the tree and must not trip the prefix warning.
+    rp "$T" config --workspace "$ovr"
+    if [ "$RP_RC" = "0" ] && [ -z "$RP_ERR" ]; then
+        assert_one "S16g bare '.claude' override: inside the tree, no warning" "ok"
+    else
+        assert_one "S16g bare '.claude' override: inside the tree, no warning" "fail" "rc=$RP_RC stderr=[$RP_ERR]"
+    fi
+    # An override must beat a hierarchy default too, not just a flat unset.
+    printf 'layout=hierarchy\ndesign=.claude/custom/design.md\n' > "$hier/.claude/oj-paths.env"
+    rp "$T" design --workspace "$hier"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "${hier}/.claude/custom/design.md" ]; then
+        assert_one "S16g override beats a hierarchy profile default" "ok"
+    else
+        assert_one "S16g override beats a hierarchy profile default" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+    rp "$T" decisions --workspace "$hier"
+    if [ "$RP_RC" = "0" ] && [ "$RP_OUT" = "${hier}/.claude/decisions.md" ]; then
+        assert_one "S16g overriding one key leaves its siblings on the profile default" "ok"
+    else
+        assert_one "S16g overriding one key leaves its siblings on the profile default" "fail" "rc=$RP_RC out=[$RP_OUT]"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+}
+
+# ────────────────────────────────────────────────────────────────────
+# S17 — backlog-list / backlog-lint (plural-aware backlog)
+# ────────────────────────────────────────────────────────────────────
+scenario_s17_backlog_plural() {
+    local T; T=$(mktemp -d -t oj-hook-s17-XXXXXX); trap 'rm -rf "$T"' EXIT
+    mkdir -p "$T/home" "$T/xdg"
+
+    local rc out
+
+    # ---- S17a: single-file workspace ----
+    local S="$T/single"; mkdir -p "$S/.claude"
+    cat > "$S/.claude/BACKLOG.md" <<'EOF'
+# Backlog
+<a id="ws-a"></a>
+### WS-A
+- **L-001** -- first item
+- **L-002** -- second item
+EOF
+    rc=0; out="$("${OJ_HELPER}" backlog-list --workspace "$S" 2>/dev/null)" || rc=$?
+    if [ "$rc" = "0" ] && [ "$out" = "${S}/.claude/BACKLOG.md" ]; then
+        assert_one "S17a single-file: backlog-list emits the one resolved backlog" "ok"
+    else
+        assert_one "S17a single-file: backlog-list emits the one resolved backlog" "fail" "rc=$rc out=[$out]"
+    fi
+    rc=0; out="$("${OJ_HELPER}" backlog-lint --workspace "$S" 2>&1)" || rc=$?
+    if [ "$rc" = "0" ] && printf '%s' "$out" | grep -qF "OK"; then
+        assert_one "S17a single-file: backlog-lint clean, exit 0" "ok"
+    else
+        assert_one "S17a single-file: backlog-lint clean, exit 0" "fail" "rc=$rc out=[$out]"
+    fi
+
+    # ---- S17b: no backlog at all ----
+    local E="$T/empty"; mkdir -p "$E/.claude"
+    rc=0; out="$("${OJ_HELPER}" backlog-list --workspace "$E" 2>/dev/null)" || rc=$?
+    if [ "$rc" = "0" ] && [ -z "$out" ]; then
+        assert_one "S17b no backlog: backlog-list exits 0 with empty stdout" "ok"
+    else
+        assert_one "S17b no backlog: backlog-list exits 0 with empty stdout" "fail" "rc=$rc out=[$out]"
+    fi
+    rc=0; out="$("${OJ_HELPER}" backlog-lint --workspace "$E" 2>&1)" || rc=$?
+    if [ "$rc" = "0" ] && printf '%s' "$out" | grep -qF "no backlog files found"; then
+        assert_one "S17b no backlog: backlog-lint degrades gracefully, exit 0" "ok"
+    else
+        assert_one "S17b no backlog: backlog-lint degrades gracefully, exit 0" "fail" "rc=$rc out=[$out]"
+    fi
+
+    # ---- S17c/d/e: plural workspace with planted defects ----
+    # projA carries a duplicate anchor AND a duplicate id; projB re-uses
+    # L-002, which projA also defines, producing a cross-file collision.
+    # projA also MENTIONS L-002 in prose — the falsifier for S17e.
+    local P="$T/plural"; mkdir -p "$P/.claude/projA" "$P/.claude/projB"
+    cat > "$P/.claude/oj-paths.env" <<'EOF'
+layout=hierarchy
+backlog-glob=.claude/*/plan.md
+id-index=.claude/id-index.md
+EOF
+    cat > "$P/.claude/projA/plan.md" <<'EOF'
+# Project A plan
+<a id="ws-a"></a>
+- **L-001** -- alpha
+- **L-002** -- beta
+<a id="ws-a"></a>
+- **L-003** -- gamma
+- **L-003** -- gamma again
+See also L-002 for context (a mention, not a definition).
+EOF
+    cat > "$P/.claude/projB/plan.md" <<'EOF'
+# Project B plan
+- **L-002** -- a different item, colliding across files
+- **L-050** -- unique
+EOF
+
+    rc=0; out="$("${OJ_HELPER}" backlog-list --workspace "$P" 2>/dev/null)" || rc=$?
+    local want_list="${P}/.claude/projA/plan.md
+${P}/.claude/projB/plan.md"
+    if [ "$rc" = "0" ] && [ "$out" = "$want_list" ]; then
+        assert_one "S17c plural: backlog-list emits every glob match, sorted" "ok"
+    else
+        assert_one "S17c plural: backlog-list emits every glob match, sorted" "fail" "rc=$rc out=[$out]"
+    fi
+    # The contract that nine call sites depend on must survive plurality.
+    rc=0; out="$("${OJ_HELPER}" resolve-path backlog --workspace "$P" 2>/dev/null)" || rc=$?
+    if [ "$rc" = "0" ] && [ "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" = "1" ]; then
+        assert_one "S17c plural: resolve-path backlog still returns exactly ONE path" "ok"
+    else
+        assert_one "S17c plural: resolve-path backlog still returns exactly ONE path" "fail" "rc=$rc out=[$out]"
+    fi
+
+    rc=0; out="$("${OJ_HELPER}" backlog-lint --workspace "$P" 2>&1)" || rc=$?
+    if [ "$rc" = "1" ]; then
+        assert_one "S17d plural defects: backlog-lint exits 1 (gateable)" "ok"
+    else
+        assert_one "S17d plural defects: backlog-lint exits 1 (gateable)" "fail" "rc=$rc out=[$out]"
+    fi
+    if printf '%s' "$out" | grep -qF "DUPLICATE-ANCHOR"; then
+        assert_one "S17d plural defects: duplicate HTML anchor detected" "ok"
+    else
+        assert_one "S17d plural defects: duplicate HTML anchor detected" "fail" "out=[$out]"
+    fi
+    if printf '%s' "$out" | grep -qF "DUPLICATE-ID" && printf '%s' "$out" | grep -qF "L-003"; then
+        assert_one "S17d plural defects: duplicate item id within one file detected (L-003)" "ok"
+    else
+        assert_one "S17d plural defects: duplicate item id within one file detected (L-003)" "fail" "out=[$out]"
+    fi
+    if printf '%s' "$out" | grep -qF "ID-COLLISION" && printf '%s' "$out" | grep -qF "L-002"; then
+        assert_one "S17d plural defects: cross-file id collision detected (L-002)" "ok"
+    else
+        assert_one "S17d plural defects: cross-file id collision detected (L-002)" "fail" "out=[$out]"
+    fi
+    # FALSIFIER: the prose mention of L-002 in projA must not be read as a
+    # second definition there — that would report a within-file DUPLICATE-ID.
+    if ! printf '%s' "$out" | grep -F "DUPLICATE-ID" | grep -qF "L-002"; then
+        assert_one "S17e FALSIFIER: a prose mention of an id is not counted as a definition" "ok"
+    else
+        assert_one "S17e FALSIFIER: a prose mention of an id is not counted as a definition" "fail" "out=[$out]"
+    fi
+
+    # A clean plural set must pass, or the check is useless noise.
+    local C="$T/clean"; mkdir -p "$C/.claude/p1" "$C/.claude/p2"
+    printf 'backlog-glob=.claude/*/plan.md\n' > "$C/.claude/oj-paths.env"
+    printf -- '- **K-001** -- a\n- **K-002** -- b (see K-001)\n' > "$C/.claude/p1/plan.md"
+    printf -- '- **K-003** -- c\n' > "$C/.claude/p2/plan.md"
+    rc=0; out="$("${OJ_HELPER}" backlog-lint --workspace "$C" 2>&1)" || rc=$?
+    if [ "$rc" = "0" ] && printf '%s' "$out" | grep -qF "OK"; then
+        assert_one "S17e clean plural set: backlog-lint exits 0" "ok"
+    else
+        assert_one "S17e clean plural set: backlog-lint exits 0" "fail" "rc=$rc out=[$out]"
+    fi
+
+    # ---- S17h: multiple patterns + globstar depth ----
+    # A taxonomy nests nodes at varying depths and its backlog files need not
+    # share a filename, so both capabilities are load-bearing. This also pins
+    # the regression that made a bare `for pat in $glob` discard every pattern:
+    # with nullglob on, splitting glob-expanded each word against $PWD first,
+    # and a pattern matching nothing in the CURRENT dir vanished before it was
+    # ever anchored to the workspace root.
+    local M="$T/multi"; mkdir -p "$M/.claude/a/deep/deeper" "$M/.claude/b"
+    printf 'backlog-glob=.claude/backlog.md .claude/**/plan.md\n' > "$M/.claude/oj-paths.env"
+    printf -- '- **M-001** -- root backlog\n'   > "$M/.claude/backlog.md"
+    printf -- '- **M-002** -- shallow\n'        > "$M/.claude/b/plan.md"
+    printf -- '- **M-003** -- deeply nested\n'  > "$M/.claude/a/deep/deeper/plan.md"
+    rc=0; out="$("${OJ_HELPER}" backlog-list --workspace "$M" 2>/dev/null)" || rc=$?
+    local n; n="$(printf '%s\n' "$out" | grep -c . || true)"
+    if [ "$rc" = "0" ] && [ "$n" = "3" ]; then
+        assert_one "S17h multi-pattern + globstar: all 3 files found across depths" "ok"
+    else
+        assert_one "S17h multi-pattern + globstar: all 3 files found across depths" "fail" "rc=$rc n=$n out=[$out]"
+    fi
+    if printf '%s' "$out" | grep -qF "/.claude/backlog.md" \
+       && printf '%s' "$out" | grep -qF "/a/deep/deeper/plan.md"; then
+        assert_one "S17h multi-pattern + globstar: both the second pattern and a deep match are included" "ok"
+    else
+        assert_one "S17h multi-pattern + globstar: both the second pattern and a deep match are included" "fail" "out=[$out]"
+    fi
+    # Shell options must not leak out of the subcommand into the dispatcher.
+    if ! shopt -q globstar 2>/dev/null && ! shopt -q nullglob 2>/dev/null; then
+        assert_one "S17h shell options (nullglob/globstar) not leaked to the caller" "ok"
+    else
+        assert_one "S17h shell options (nullglob/globstar) not leaked to the caller" "fail" "globstar/nullglob left set"
+    fi
+
+    # ---- S17f: FALSIFIER — a non-matching glob must emit nothing ----
+    local N="$T/noglob"; mkdir -p "$N/.claude"
+    printf 'backlog-glob=.claude/nope/*/plan.md\n' > "$N/.claude/oj-paths.env"
+    rc=0; out="$("${OJ_HELPER}" backlog-list --workspace "$N" 2>/dev/null)" || rc=$?
+    if [ "$rc" = "0" ] && [ -z "$out" ]; then
+        assert_one "S17f FALSIFIER: non-matching glob emits nothing (not the literal pattern)" "ok"
+    else
+        assert_one "S17f FALSIFIER: non-matching glob emits nothing (not the literal pattern)" "fail" "rc=$rc out=[$out]"
+    fi
+
+    # ---- S17g: id-index is override-only ----
+    rc=0; out="$("${OJ_HELPER}" resolve-path id-index --workspace "$S" 2>&1)" || rc=$?
+    if [ "$rc" = "3" ] && printf '%s' "$out" | grep -qF "override-only"; then
+        assert_one "S17g id-index unset: exit 3 and advice says override-only" "ok"
+    else
+        assert_one "S17g id-index unset: exit 3 and advice says override-only" "fail" "rc=$rc out=[$out]"
+    fi
+    # Advising layout=hierarchy here would be wrong: a profile switch cannot
+    # supply an override-only key.
+    if ! printf '%s' "$out" | grep -qF "layout=hierarchy"; then
+        assert_one "S17g id-index unset: advice does NOT suggest layout=hierarchy" "ok"
+    else
+        assert_one "S17g id-index unset: advice does NOT suggest layout=hierarchy" "fail" "out=[$out]"
+    fi
+    rc=0; out="$("${OJ_HELPER}" resolve-path id-index --workspace "$P" 2>/dev/null)" || rc=$?
+    if [ "$rc" = "0" ] && [ "$out" = "${P}/.claude/id-index.md" ]; then
+        assert_one "S17g id-index overridden: resolves" "ok"
+    else
+        assert_one "S17g id-index overridden: resolves" "fail" "rc=$rc out=[$out]"
+    fi
+
+    rm -rf "$T"; trap - EXIT
+}
+
 echo -e "${YELLOW}[INFO]${NC} oj-helper-hook-test"
 echo -e "${YELLOW}[INFO]${NC} oj-helper: ${OJ_HELPER}"
 echo
@@ -1050,6 +1540,8 @@ scenario_s12_hook_chain_integration
 scenario_s13_stale_lock_recovery
 scenario_s14_agent_teams_check
 scenario_s15_workstream_new
+scenario_s16_resolve_path
+scenario_s17_backlog_plural
 
 echo
 echo "================================"

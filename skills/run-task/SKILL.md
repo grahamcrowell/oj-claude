@@ -239,9 +239,9 @@ tier: Simple|Moderate|Complex
 
 Fill in the actual date, the ticket key (issue tracker mode) or backlog ID (BACKLOG.md mode), the tier, and the retrospective content. Each run-task invocation produces exactly one new file.
 
-#### Artifacts
+#### File the artifacts
 
-Store design documents, ADRs, or analysis artifacts produced during this run-task invocation under the artifacts root from `oj-helper resolve-path artifacts` (fallback `.claude/artifacts/`).
+For each durable document produced during this run-task invocation, **classify it by type and file it by type** — producing a document without filing it leaves a human to re-file it. Classify as decision / fact / requirement / design / plan / review / analysis, ask `oj-helper resolve-path <type>` (add `--node <relpath>` for the node that owns the subject), and write to the resolved file. If the key exits 3, this project has no per-type filing surface — fall back to one document under `oj-helper resolve-path artifacts` (fallback `.claude/artifacts/`). Two rules that decide the ambiguous cases: **a review is not a design** (point-in-time findings go to history, new intent goes to the node — split a document that does both), and **a fact needs provenance** (prefer `ASSERTED-UNVERIFIED` plus a verification path over a bare number). Full procedure: `${CLAUDE_PLUGIN_ROOT}/reference/file-patterns.md` § Filing Rule — do not duplicate it here.
 
 #### Notify
 

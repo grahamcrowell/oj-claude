@@ -33,20 +33,23 @@ Decision tree:
 ### Step 2 — Load Backlog Items
 
 - **issue tracker mode**: Run `oj-helper issue-tracker-list --project PROJECT_KEY`. Parse the JSON response to extract `key`, `summary`, `status`, and `priority` for each item.
-- **BACKLOG.md mode**: Resolve the backlog path with `oj-helper resolve-path backlog` (fallback `.claude/BACKLOG.md` if it prints nothing), then read it. Parse the markdown structure to extract `ID`, `title`, and `status` per item, grouped by priority section (P0-P4).
+- **BACKLOG.md mode**: Enumerate the backlog files with `oj-helper backlog-list`, which prints one absolute path per line and honors a `backlog-glob=` override for a project whose backlog is split across several files. **Read every path it prints and aggregate across them** — a project with per-node backlogs has no single file that holds all the work, so reading only one shows a fraction of it and omits the rest without saying so. If `backlog-list` prints nothing, fall back to `oj-helper resolve-path backlog` (fallback `.claude/BACKLOG.md`) and read that single file. Parse the markdown structure to extract `ID`, `title`, and `status` per item, grouped by priority section (P0-P4). Keep track of which file each item came from — the next step reports it.
+
+  When more than one file is in play, run `oj-helper backlog-lint` and surface any findings in the output. It checks three things that are invisible to a human reading the files and cheap for a machine: duplicate HTML anchors, an item id defined twice in one file, and the same id defined in two different files. The third only becomes possible once a backlog is split, and it makes inbound links silently resolve to the wrong item — worth knowing before you act on a listing. `backlog-lint` exits 1 when it finds something; that is a report to pass along, not a reason to abort a read-only view.
 
 ### Step 3 — Present Summary
 
 #### Header
 
-- State the backlog source — the project key (issue tracker mode) or `BACKLOG.md` (BACKLOG.md mode)
+- State the backlog source — the project key (issue tracker mode), or the backlog file (BACKLOG.md mode). When `backlog-list` returned more than one file, **say how many files were aggregated and name them**: a reader who is not told the listing spans five files cannot tell it apart from one that quietly covered one.
 - State the total count of **open** items
+- Report any `backlog-lint` findings (duplicate anchors, duplicate ids, cross-file id collisions), or state that the structural check was clean
 
 #### Items by Priority/Status
 
 Group items by priority. For each item, show:
 
-- **ID** — issue tracker key (e.g., `PROJ-123`) or the local backlog ID **exactly as written** in the file. Do not assume a `BACK-` prefix: match whatever `<PREFIX>-<N>` scheme the backlog uses (e.g. `BACK-12`, `L-071`).
+- **ID** — issue tracker key (e.g., `PROJ-123`) or the local backlog ID **exactly as written** in the file. Do not assume a `BACK-` prefix: match whatever `<PREFIX>-<N>` scheme the backlog uses (e.g. `BACK-12`, `L-071`). When aggregating several files, show the owning file for any ID that `backlog-lint` flagged as colliding, since the ID alone no longer identifies one item.
 - **Title / Summary**
 - **Status** — Open, In Progress, Blocked, etc.
 

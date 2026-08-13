@@ -1114,10 +1114,28 @@ _workstream_link_one() {
 _workstream_link_all() {
   # _workstream_link_all <workspace> <dst-claude-dir>
   # Links the canonical oj state paths, which live directly under .claude/.
+  #
+  # oj-paths.env MUST be linked first and is load-bearing: a workstream dir
+  # has its own `.claude/`, so resolve-path's ancestor walk stops there rather
+  # than at the canonical workspace. Without this link every per-key override
+  # and the layout profile silently revert to the shipped defaults inside a
+  # workstream — the paths would resolve, just to the wrong files, which is
+  # the failure mode resolve-path exists to prevent.
   local workspace="$1" dst_base="$2"
+  _workstream_link_one "$workspace" "$dst_base" "oj-paths.env"     optional
   _workstream_link_one "$workspace" "$dst_base" "state/session.md" required
   _workstream_link_one "$workspace" "$dst_base" "BACKLOG.md"       required
   _workstream_link_one "$workspace" "$dst_base" "artifacts"        optional
+
+  # Category files for a `layout=hierarchy` workspace. All optional: a flat
+  # workspace has none of them, so each is a silent skip and the flat
+  # behavior is byte-identical to before. Only the ROOT-level nodes are
+  # linked — deeper nodes are project directories, and linking a whole
+  # taxonomy tree per workstream would be a scaffolding decision this
+  # subcommand has no basis to make.
+  _workstream_link_one "$workspace" "$dst_base" "decisions.md"      optional
+  _workstream_link_one "$workspace" "$dst_base" "open-questions.md" optional
+  _workstream_link_one "$workspace" "$dst_base" "facts"             optional
 }
 
 cmd_workstream_new() {
@@ -1164,11 +1182,13 @@ cmd_workstream_new() {
     cat > "$claude_md" <<EOF
 # Workstream: $wsid
 
-CWD is a workstream directory. The files under \`.claude/state/\`, \`.claude/BACKLOG.md\`, and \`.claude/artifacts/\` are SYMLINKS to the canonical workspace state at \`$workspace/.claude/\` — every workstream writes into the same files.
+CWD is a workstream directory. The shared oj state in \`.claude/\` — \`state/\`, \`BACKLOG.md\`, \`artifacts/\`, \`oj-paths.env\`, and any root-level category files (\`decisions.md\`, \`open-questions.md\`, \`facts/\`) present in the workspace — are SYMLINKS to the canonical workspace state at \`$workspace/.claude/\`. Every workstream writes into the same files.
+
+Resolve state paths with \`oj-helper resolve-path <key>\` rather than treating the paths above as literal; the linked \`oj-paths.env\` is what makes that resolve identically here and in the canonical workspace.
 
 ## Tagging rule (required)
 
-Every new entry appended to \`.claude/BACKLOG.md\`, \`.claude/state/session.md\`, or any file created under \`.claude/artifacts/\` MUST include the tag \`[ws: $wsid]\` so the entry remains attributable across workstreams.
+Every new entry appended to any shared state file — \`.claude/BACKLOG.md\`, \`.claude/state/session.md\`, a category file such as \`.claude/decisions.md\`, or any file created under \`.claude/artifacts/\` — MUST include the tag \`[ws: $wsid]\` so the entry remains attributable across workstreams. This applies to appends into shared typed files, which is where concurrent workstreams collide most easily.
 
 Existing entries owned by other workstreams MUST NOT be edited or removed. Only entries tagged \`[ws: $wsid]\` (or untagged entries you yourself just authored in this session) may be modified.
 
@@ -1226,8 +1246,11 @@ EOF
 # for a key, oj-helper returns the path.
 #
 # Usage:
-#   oj-helper resolve-path <key> [--workspace PATH]
-#   keys: session | backlog | artifacts | state-dir | config | retros
+#   oj-helper resolve-path <key> [--workspace PATH] [--node RELPATH]
+#
+#   state keys:    session | backlog | artifacts | state-dir | config | retros
+#   category keys: decisions | facts | open-questions | requirements |
+#                  design | plan
 #
 # Workspace root resolution (root = the dir that contains `.claude/`):
 #   1. --workspace PATH (must exist), else
@@ -1237,25 +1260,80 @@ EOF
 #   3. nearest ancestor of $PWD (incl. $PWD) containing a `.claude/` dir, else
 #   4. $PWD
 #
-# Layout: oj state lives directly under `.claude/` — `.claude/state/`,
-# `.claude/BACKLOG.md`, `.claude/artifacts/`. (Earlier releases also probed a
-# `.claude/local/` canonical-state-root; that layout was removed so resolve-path
-# never points at nonexistent `local/` paths.)
+# Layout profiles: `<root>/.claude/oj-paths.env` may set `layout=flat` or
+# `layout=hierarchy`. `flat` is the default and stays the default — oj must be
+# able to EXPRESS a layout it does not IMPOSE, so promoting any one project's
+# taxonomy to the shipped default is out of scope by construction.
+#
+#   flat (default) — oj state lives directly under `.claude/`:
+#     `.claude/state/`, `.claude/BACKLOG.md`, `.claude/artifacts/`. (Earlier
+#     releases also probed a `.claude/local/` canonical-state-root; that layout
+#     was removed so resolve-path never points at nonexistent `local/` paths.)
+#     The six state keys resolve. The category keys are deliberately UNSET
+#     (exit 3, below): a flat project has no per-type filing surface, and
+#     inventing one (`.claude/DECISIONS.md`) would aim skills at a file the
+#     project does not keep. An unset key that fails loudly beats a key that
+#     silently resolves somewhere wrong.
+#
+#   hierarchy — a type-based taxonomy: a document goes to the node that owns
+#     the subject matter, in the file named for its type. Category keys resolve
+#     to `<node>/<key>.md` (`<node>/facts/` for `facts`), where `<node>`
+#     defaults to `.claude/` and `--node RELPATH` selects a deeper one:
+#       resolve-path decisions                     -> .claude/decisions.md
+#       resolve-path decisions --node proj/subject -> .claude/proj/subject/decisions.md
+#     A leading `.claude/` on RELPATH is tolerated and stripped, so
+#     `--node proj/sub` and `--node .claude/proj/sub` name the same node.
+#     `--node` is accepted and ignored elsewhere, so a caller never has to
+#     branch on the active profile just to pass it.
 #
 # Per-key override: <root>/.claude/oj-paths.env may set
 # `key=workspace-relative-path` (e.g. `session=.claude/state/session.md`;
 # `#` comments and surrounding whitespace allowed). An override wins over the
-# default for that key — use it to relocate state if a project must.
+# profile default for that key — use it to relocate state if a project must,
+# including to give a single category key a home under `flat`. A RELATIVE
+# override that does not start with `.claude/` resolves OUTSIDE the state tree;
+# that is the easiest misconfiguration to create and the hardest to notice, so
+# resolve-path warns on stderr and still honors the value. An ABSOLUTE override
+# is honored silently — leaving the tree on purpose is a supported escape.
 #
 # Output: one absolute path on stdout. The path is NOT created — callers
 # decide that (resolve-path is pure resolution, safe to call before a file
-# exists). Exit 0 on success, 1 on bad key / unresolvable workspace.
+# exists).
+#
+# Exit codes:
+#   0 — resolved; exactly one absolute path on stdout
+#   1 — unknown key, unknown flag, bad layout profile, or a --workspace path
+#       that does not exist
+#   3 — a KNOWN key that the active layout profile leaves unset (a category key
+#       under `flat`). Distinct from 1 deliberately: a caller can treat 3 as
+#       "this project has no home for that type, fall back" while still
+#       treating 1 as a bug in its own call.
 # ────────────────────────────────────────────────────────────────────
+
+# Canonical key lists. Referenced by the usage/error strings below and by the
+# `help` output, so the enumeration has one source rather than four.
+OJ_RESOLVE_PATH_STATE_KEYS="session backlog artifacts state-dir config retros"
+OJ_RESOLVE_PATH_CATEGORY_KEYS="decisions facts open-questions requirements design plan"
+# Keys with no default under ANY profile — override-only (see the case below).
+OJ_RESOLVE_PATH_OPTIONAL_KEYS="id-index"
+
+# _oj_paths_env_get — echo the last assignment for a key in an oj-paths.env
+# style file, or nothing. `|| true` neutralizes a no-match grep under
+# `set -o pipefail`.
+_oj_paths_env_get() {
+  local file="$1" key="$2"
+  [[ -f "$file" ]] || return 0
+  grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" 2>/dev/null \
+    | tail -n1 \
+    | sed -E "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*//; s/[[:space:]]*\$//" || true
+}
+
 cmd_resolve_path() {
-  local key="" explicit_workspace=""
+  local key="" explicit_workspace="" node=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --workspace) explicit_workspace="${2:-}"; shift 2 ;;
+      --node)      node="${2:-}"; shift 2 ;;
       --*)         die "resolve-path: unknown flag: $1" ;;
       *)
         if [[ -z "$key" ]]; then key="$1"; else die "resolve-path: unexpected argument: $1"; fi
@@ -1263,7 +1341,7 @@ cmd_resolve_path() {
         ;;
     esac
   done
-  [[ -n "$key" ]] || die "resolve-path: missing key. One of: session backlog artifacts state-dir config retros"
+  [[ -n "$key" ]] || die "resolve-path: missing key. One of: ${OJ_RESOLVE_PATH_STATE_KEYS} ${OJ_RESOLVE_PATH_CATEGORY_KEYS} ${OJ_RESOLVE_PATH_OPTIONAL_KEYS}"
 
   # 1. Resolve workspace root.
   local root=""
@@ -1288,9 +1366,34 @@ cmd_resolve_path() {
     fi
   fi
 
-  # 2. Per-key default (workspace-relative). oj state lives directly under
-  #    `.claude/`; there is no `.claude/local/` layout.
-  local rel=""
+  local override_file="$root/.claude/oj-paths.env"
+
+  # 2. Layout profile. `flat` is the default, and an unrecognized value is a
+  #    hard error rather than a silent fall back to flat — a typo'd profile
+  #    would otherwise resolve every category key to the wrong answer quietly.
+  local layout=""
+  layout="$(_oj_paths_env_get "$override_file" layout)"
+  if [[ -z "$layout" ]]; then layout="flat"; fi
+  case "$layout" in
+    flat|hierarchy) ;;
+    *) die "resolve-path: unknown layout profile: '${layout}' (in ${override_file}). One of: flat hierarchy" ;;
+  esac
+
+  # 3. Node prefix for the category keys, defaulting to the state root. A
+  #    leading `.claude/` on --node is tolerated so both `--node proj/sub` and
+  #    `--node .claude/proj/sub` name the same node.
+  local node_rel=".claude"
+  if [[ -n "$node" ]]; then
+    node="${node#./}"; node="${node#/}"; node="${node%/}"
+    node="${node#.claude/}"
+    if [[ "$node" == ".claude" ]]; then node=""; fi
+    if [[ -n "$node" ]]; then node_rel=".claude/$node"; fi
+  fi
+
+  # 4. Per-key default (workspace-relative), by layout profile. The six state
+  #    keys are profile-independent: relocating them is an override's job, not
+  #    a taxonomy's, so `hierarchy` does not silently move `session`.
+  local rel="" unset_in_layout=""
   case "$key" in
     session)    rel=".claude/state/session.md" ;;
     backlog)    rel=".claude/BACKLOG.md" ;;
@@ -1298,23 +1401,286 @@ cmd_resolve_path() {
     state-dir)  rel=".claude/state" ;;
     config)     rel=".claude" ;;
     retros)     rel=".claude/archive/retros" ;;
-    *) die "resolve-path: unknown key: $key. One of: session backlog artifacts state-dir config retros" ;;
+    decisions|facts|open-questions|requirements|design|plan)
+      if [[ "$layout" == "hierarchy" ]]; then
+        case "$key" in
+          facts) rel="$node_rel/facts" ;;
+          *)     rel="$node_rel/${key}.md" ;;
+        esac
+      else
+        unset_in_layout=1
+      fi
+      ;;
+    # id-index has NO default under either profile — deliberately. It names a
+    # project-authored file mapping item id -> owning backlog file, and the
+    # plugin cannot guess whether one exists or what it is called. Guessing
+    # would hand callers a path to a file that is not an index. Available only
+    # via an explicit override; exit 3 otherwise, in both profiles.
+    id-index)   unset_in_layout=1 ;;
+    *) die "resolve-path: unknown key: $key. One of: ${OJ_RESOLVE_PATH_STATE_KEYS} ${OJ_RESOLVE_PATH_CATEGORY_KEYS} ${OJ_RESOLVE_PATH_OPTIONAL_KEYS}" ;;
   esac
 
-  # 3. Per-key override file wins (if present). `|| true` neutralizes a
-  # no-match grep under `set -o pipefail`.
-  local override_file="$root/.claude/oj-paths.env"
-  if [[ -f "$override_file" ]]; then
-    local ov=""
-    ov="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$override_file" 2>/dev/null | tail -n1 | sed -E "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*//; s/[[:space:]]*\$//")" || true
-    [[ -n "$ov" ]] && rel="$ov"
+  # 5. Per-key override wins over the profile default — including for a
+  #    category key that the profile leaves unset, so a `flat` project that
+  #    does keep one such file can name it without adopting the whole
+  #    hierarchy. Warn on a relative value that escapes the state tree.
+  local ov=""
+  ov="$(_oj_paths_env_get "$override_file" "$key")"
+  if [[ -n "$ov" ]]; then
+    case "$ov" in
+      /*)              ;;  # absolute: leaving the tree on purpose, no warning
+      .claude|.claude/*) ;;  # inside the state tree: the documented shape
+      *) echo "WARNING: resolve-path: override '${key}=${ov}' in ${override_file} is workspace-relative but does not start with '.claude/', so it resolves OUTSIDE the state tree, at '${root}/${ov}'. Prefix it with '.claude/' if you meant a path inside it." >&2 ;;
+    esac
+    rel="$ov"
+    unset_in_layout=""
   fi
 
-  # 4. Emit absolute path (override values may themselves be absolute).
+  # 6. A known key this profile leaves unset: exit 3, distinct from the exit 1
+  #    an unknown key gets, so a caller can tell "no home for this type here"
+  #    apart from "I asked for a key that does not exist". The remedy differs
+  #    per key family — an override-only key is not fixed by a profile switch,
+  #    so do not advise one.
+  if [[ -n "$unset_in_layout" ]]; then
+    case " ${OJ_RESOLVE_PATH_OPTIONAL_KEYS} " in
+      *" ${key} "*)
+        echo "ERROR: resolve-path: key '${key}' has no default under any layout — it is override-only. Set '${key}=.claude/...' in ${override_file} if this project has one." >&2 ;;
+      *)
+        echo "ERROR: resolve-path: key '${key}' is unset under layout '${layout}'. Set 'layout=hierarchy' or an explicit '${key}=.claude/...' override in ${override_file}." >&2 ;;
+    esac
+    exit 3
+  fi
+
+  # 7. Emit absolute path (override values may themselves be absolute).
   case "$rel" in
     /*) echo "$rel" ;;
     *)  echo "$root/$rel" ;;
   esac
+}
+
+# ────────────────────────────────────────────────────────────────────
+# backlog-list — echo every backlog file, one absolute path per line.
+# ────────────────────────────────────────────────────────────────────
+# WHY: `resolve-path backlog` answers "ONE path", and must keep doing so —
+# nine call sites consume it as a single path. But a backlog is not always one
+# file. A project large enough to carry several sub-projects splits its backlog
+# per node, at which point a skill pointed at any single file shows a fraction
+# of the work and silently omits the rest. That silence is the whole problem:
+# nothing about reading one file tells you four others exist.
+#
+# So the plural question gets its own subcommand rather than a changed contract:
+#   resolve-path backlog  -> where to WRITE (always exactly one path)
+#   backlog-list          -> what exists to READ (zero or more paths)
+#
+# Usage: oj-helper backlog-list [--workspace PATH]
+#
+# Source, in order:
+#   1. `backlog-glob=` in <root>/.claude/oj-paths.env — one or more
+#      workspace-relative glob patterns, separated by whitespace:
+#        backlog-glob=.claude/backlog.md .claude/**/plan.md
+#      `**` matches across directory levels (globstar), because a type-based
+#      taxonomy nests its nodes at varying depths and a single-level `*` cannot
+#      reach them. Several patterns are supported because the files that make
+#      up one backlog need not share a filename. Multiple `backlog-glob=`
+#      LINES are not merged; the last line wins, matching resolve-path's
+#      precedence. Only EXISTING files are emitted, sorted, deduplicated.
+#   2. otherwise the single `resolve-path backlog` answer, emitted only if it
+#      exists.
+#
+# Output: zero or more absolute paths, one per line. Exit 0 even when empty —
+# an empty backlog set is a legitimate answer, not an error, and callers count
+# lines. Exit 1 only on a bad --workspace.
+# ────────────────────────────────────────────────────────────────────
+cmd_backlog_list() {
+  local explicit_workspace=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --workspace) explicit_workspace="${2:-}"; shift 2 ;;
+      --*)         die "backlog-list: unknown flag: $1" ;;
+      *)           die "backlog-list: unexpected argument: $1" ;;
+    esac
+  done
+
+  local root=""
+  if [[ -n "$explicit_workspace" ]]; then
+    [[ -d "$explicit_workspace" ]] || die "backlog-list: --workspace path does not exist: $explicit_workspace"
+    root="$(cd "$explicit_workspace" && pwd)"
+  else
+    local osr="${OJ_STATE_ROOT:-}"
+    osr="${osr%/.claude/local}"
+    osr="${osr%/.claude}"
+    if [[ -n "$osr" && -d "$osr" ]]; then
+      root="$(cd "$osr" && pwd)"
+    else
+      local dir="$PWD"
+      while [[ "$dir" != "/" ]]; do
+        if [[ -d "$dir/.claude" ]]; then root="$dir"; break; fi
+        dir="$(dirname "$dir")"
+      done
+      [[ -n "$root" ]] || root="$PWD"
+    fi
+  fi
+
+  local override_file="$root/.claude/oj-paths.env"
+  local glob=""
+  glob="$(_oj_paths_env_get "$override_file" "backlog-glob")"
+
+  if [[ -n "$glob" ]]; then
+    # Deliberate unquoted expansion: these words ARE patterns.
+    #   nullglob — a no-match expands to nothing rather than to the literal
+    #              pattern, which would otherwise be emitted as a bogus path.
+    #   globstar — `**` spans directory levels, so a nested taxonomy is
+    #              reachable by one pattern.
+    # Both are restored to their prior state afterward: this function runs
+    # inside a long-lived dispatcher, and leaking shell options into unrelated
+    # subcommands would be a spooky action at a distance.
+    # Split the pattern list on whitespace WITHOUT pathname expansion. A bare
+    # `for pat in $glob` would glob each word against $PWD first — and with
+    # nullglob on, a pattern that matches nothing in the CURRENT directory
+    # expands to nothing, silently discarding it before it is ever anchored to
+    # $root. `read -ra` splits on IFS and never globs, which is the point.
+    local -a patterns=()
+    read -ra patterns <<< "$glob"
+
+    local had_nullglob=0 had_globstar=0
+    shopt -q nullglob && had_nullglob=1
+    shopt -q globstar && had_globstar=1
+    shopt -s nullglob globstar
+
+    local -a matches=()
+    local pat abs m
+    for pat in "${patterns[@]}"; do
+      case "$pat" in /*) abs="$pat" ;; *) abs="$root/$pat" ;; esac
+      # shellcheck disable=SC2206  # unquoted on purpose: globbing is the point
+      for m in $abs; do
+        [[ -f "$m" ]] && matches+=("$m")
+      done
+    done
+
+    [[ "$had_nullglob" -eq 1 ]] || shopt -u nullglob
+    [[ "$had_globstar" -eq 1 ]] || shopt -u globstar
+
+    if [[ ${#matches[@]} -gt 0 ]]; then
+      printf '%s\n' "${matches[@]}" | LC_ALL=C sort -u
+    fi
+    return 0
+  fi
+
+  # Single-file fallback. Reuse resolve-path in a subshell so its exit-on-error
+  # paths cannot terminate this one.
+  local single=""
+  single="$(cmd_resolve_path backlog --workspace "$root" 2>/dev/null)" || return 0
+  [[ -n "$single" && -f "$single" ]] && echo "$single"
+  return 0
+}
+
+# ────────────────────────────────────────────────────────────────────
+# backlog-lint — structural integrity checks across the backlog set.
+# ────────────────────────────────────────────────────────────────────
+# WHY: both defects below were found in a real 1,151-line backlog, and NEITHER
+# was findable by reading — they are invisible at human review and cheap for a
+# machine, which is exactly the shape of check worth automating:
+#
+#   1. DUPLICATE ANCHOR ID — the same `<a id="x">` defined twice in one file.
+#      Every inbound link resolves to the first; the second is unreachable.
+#   2. ID COLLISION — the same item id defined twice. Within one file it makes
+#      the second item unreachable; ACROSS files it is worse, because two
+#      entirely different items answer to one id and inbound links silently
+#      resolve to whichever is found first. Splitting one backlog into several
+#      creates this risk where none existed, and concurrent sessions creating
+#      items the same day is enough to trigger it.
+#
+# Usage: oj-helper backlog-lint [--workspace PATH]
+#
+# Item ids are read from the § Backlog Item Schema definition form — a list
+# item opening with a bold id, `- **<PREFIX>-<N>**` — NOT from every mention,
+# so a cross-reference to an id is not miscounted as a second definition.
+#
+# Output: one line per finding on stdout, then a summary. Exit 0 clean, 1 when
+# any finding is reported (so a caller can gate on it), 2 on a driver error.
+# ────────────────────────────────────────────────────────────────────
+cmd_backlog_lint() {
+  local explicit_workspace=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --workspace) explicit_workspace="${2:-}"; shift 2 ;;
+      --*)         die_usage "backlog-lint: unknown flag: $1" ;;
+      *)           die_usage "backlog-lint: unexpected argument: $1" ;;
+    esac
+  done
+
+  local -a files=()
+  local f
+  if [[ -n "$explicit_workspace" ]]; then
+    while IFS= read -r f; do [[ -n "$f" ]] && files+=("$f"); done < <(cmd_backlog_list --workspace "$explicit_workspace")
+  else
+    while IFS= read -r f; do [[ -n "$f" ]] && files+=("$f"); done < <(cmd_backlog_list)
+  fi
+
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo "backlog-lint: no backlog files found — nothing to check."
+    return 0
+  fi
+
+  echo "backlog-lint: checking ${#files[@]} file(s)"
+  local findings=0
+
+  # --- per-file checks ---
+  local dup
+  for f in "${files[@]}"; do
+    # Duplicate HTML anchor ids within the file.
+    dup="$(grep -oE '<a[[:space:]]+id="[^"]+"' "$f" 2>/dev/null \
+           | sed -E 's/.*id="([^"]+)".*/\1/' \
+           | LC_ALL=C sort | LC_ALL=C uniq -d)" || true
+    if [[ -n "$dup" ]]; then
+      while IFS= read -r a; do
+        [[ -z "$a" ]] && continue
+        echo "  DUPLICATE-ANCHOR  ${f}: <a id=\"${a}\"> defined more than once — inbound links reach only the first"
+        findings=$((findings + 1))
+      done <<< "$dup"
+    fi
+
+    # Duplicate item-id definitions within the file.
+    dup="$(grep -oE '^[[:space:]]*[-*][[:space:]]+\*\*[A-Za-z][A-Za-z0-9_]*-[0-9]+\*\*' "$f" 2>/dev/null \
+           | sed -E 's/.*\*\*([^*]+)\*\*.*/\1/' \
+           | LC_ALL=C sort | LC_ALL=C uniq -d)" || true
+    if [[ -n "$dup" ]]; then
+      while IFS= read -r a; do
+        [[ -z "$a" ]] && continue
+        echo "  DUPLICATE-ID      ${f}: item id '${a}' defined more than once in this file — the second is unreachable"
+        findings=$((findings + 1))
+      done <<< "$dup"
+    fi
+  done
+
+  # --- cross-file id collisions (only meaningful for a plural backlog) ---
+  if [[ ${#files[@]} -gt 1 ]]; then
+    local all_ids="" id owners
+    for f in "${files[@]}"; do
+      while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        all_ids+="${id}	${f}"$'\n'
+      done < <(grep -oE '^[[:space:]]*[-*][[:space:]]+\*\*[A-Za-z][A-Za-z0-9_]*-[0-9]+\*\*' "$f" 2>/dev/null \
+               | sed -E 's/.*\*\*([^*]+)\*\*.*/\1/' | LC_ALL=C sort -u)
+    done
+    dup="$(printf '%s' "$all_ids" | cut -f1 | LC_ALL=C sort | LC_ALL=C uniq -d)" || true
+    if [[ -n "$dup" ]]; then
+      while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        owners="$(printf '%s' "$all_ids" | awk -F'\t' -v k="$id" '$1==k {printf "%s ", $2}')"
+        echo "  ID-COLLISION      item id '${id}' is defined in MORE THAN ONE file: ${owners}— inbound links resolve to whichever is read first"
+        findings=$((findings + 1))
+      done <<< "$dup"
+    fi
+  fi
+
+  echo
+  if [[ "$findings" -eq 0 ]]; then
+    echo "backlog-lint: OK — no duplicate anchors, duplicate ids, or cross-file collisions"
+    return 0
+  fi
+  echo "backlog-lint: ${findings} finding(s)"
+  return 1
 }
 
 # ────────────────────────────────────────────────────────────────────
@@ -1451,6 +1817,8 @@ case "${1:-}" in
   migrate-legacy)      shift; cmd_migrate_legacy "$@" ;;
   feedback-path)       shift; cmd_feedback_path "$@" ;;
   resolve-path)        shift; cmd_resolve_path "$@" ;;
+  backlog-list)        shift; cmd_backlog_list "$@" ;;
+  backlog-lint)        shift; cmd_backlog_lint "$@" ;;
   model-policy)        shift; cmd_model_policy "$@" ;;
   install-hooks)       shift; cmd_install_hooks "$@" ;;
   issue-tracker-check)       shift; cmd_issue_tracker_check "$@" ;;
@@ -1474,7 +1842,13 @@ SUBCOMMANDS:
   conductor-inject     Inject CONDUCTOR.md at session start (SessionStart hook)
   migrate-legacy       Detect Makefile-era install and write migration sentinels
   feedback-path        Output feedback file path for dev mode (OJ_DEVMODE=1)
-  resolve-path         Echo the canonical path for a state key (session|backlog|artifacts|state-dir|config|retros)
+  resolve-path         Echo the canonical path for a state key
+                       state:    session|backlog|artifacts|state-dir|config|retros
+                       category: decisions|facts|open-questions|requirements|design|plan
+                       (category keys need layout=hierarchy in .claude/oj-paths.env; exit 3 if unset)
+                       override-only: id-index
+  backlog-list         List every backlog file, one absolute path per line (honors backlog-glob=)
+  backlog-lint         Check the backlog set for duplicate anchors, duplicate ids, cross-file id collisions
   model-policy         Echo the effective model policy as JSON (--check <api-id> to test one model)
   install-hooks        Set core.hooksPath to .githooks in current repo (opt-in)
 
@@ -1503,6 +1877,10 @@ EXAMPLES:
   oj-helper feedback-path
   oj-helper resolve-path session
   oj-helper resolve-path backlog --workspace ~/m/data-lake
+  oj-helper resolve-path decisions
+  oj-helper resolve-path design --node myproject/mysubject
+  oj-helper backlog-list
+  oj-helper backlog-lint --workspace ~/m/data-lake
   oj-helper workstream-new DATA-1234 my-repo
   oj-helper workstream-new feat-x my-repo my-feature-branch --workspace ~/m/data-lake
 

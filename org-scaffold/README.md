@@ -94,10 +94,28 @@ availability.
 │   ├── health-check.md             — org-scope health check
 │   └── intake.md                   — inbound task triage & routing
 ├── state/                          — volatile session state (gitignored)
-└── artifacts/
-    ├── analysis/                   — org-level technical analyses
-    └── adr/                        — org-level architecture decision records
+├── artifacts/
+│   ├── analysis/                   — org-level technical analyses
+│   └── adr/                        — org-level architecture decision records
+└── profiles/                       — layout profiles for a per-project .claude/
+    ├── README.md                   — flat vs hierarchy, and how to choose
+    └── hierarchy/                  — the type-based profile, ready to copy
 ```
+
+## Layout profiles for per-project `.claude/` directories
+
+The tree above is the **flat** profile: one `BACKLOG.md`, one `artifacts/`
+directory. It is the default and it is the right answer for most projects.
+
+A project carrying several sub-projects, whose `BACKLOG.md` has become several
+project plans wearing one filename, can instead adopt the **hierarchy** profile:
+a backlog per owning node, and each document filed by its type at the node that
+owns the subject. Copy `profiles/hierarchy/` into that project's `.claude/`.
+
+Neither shape is imposed. `oj-helper resolve-path <key>` is what keeps the choice
+invisible to the skills — they ask for a key, and the profile decides what it
+resolves to. See `profiles/README.md` for the comparison, the switching cost, and
+what adopting the hierarchy obliges you to maintain.
 
 ## Next steps
 
