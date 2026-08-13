@@ -163,8 +163,8 @@ stop_reason: budget-drained | complex-next | one-way-door | user-decision | back
 ```
 Fill in the actual date, the list of backlog item IDs processed during this invocation, the list of tiers in iteration order, the stop reason, and a run-level retrospective. Each `/cycle` invocation produces exactly one new feedback file.
 
-### Step 10 — Artifacts (per invocation)
-Store any design documents, ADRs, or analysis artifacts produced during the run under the artifacts root from `oj-helper resolve-path artifacts` (fallback `.claude/artifacts/`).
+### Step 10 — File the artifacts (per invocation)
+For each durable document produced during the run — design docs, ADRs, analyses — **classify it by type and file it by type**; do not dump documents into one directory and leave a human to re-file them. Classify as decision / fact / requirement / design / plan / review / analysis, ask `oj-helper resolve-path <type>` (add `--node <relpath>` for the node that owns the subject), and write to the resolved file. If the key exits 3, this project has no per-type filing surface — fall back to one document under `oj-helper resolve-path artifacts` (fallback `.claude/artifacts/`). Two rules that decide the ambiguous cases: **a review is not a design** (point-in-time findings go to history, new intent goes to the node — split a document that does both), and **a fact needs provenance** (prefer `ASSERTED-UNVERIFIED` plus a verification path over a bare number). Full procedure: `${CLAUDE_PLUGIN_ROOT}/reference/file-patterns.md` § Filing Rule — do not duplicate it here.
 
 ### Step 11 — Notify (per invocation)
 Tell the user the cycle invocation is complete. Summarize: (a) how many items were processed and their IDs, (b) which stop condition tripped (budget / complex-next / one-way-door / user-decision / backlog-drained), (c) for `complex-next` / `one-way-door` / `user-decision` — the item it tripped on and what decision the user needs to make. Suggest `/clear` before the next invocation if context is getting large.

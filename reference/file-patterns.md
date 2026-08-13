@@ -2,7 +2,42 @@
 
 Backlog management, project structure, and LLM-optimized file patterns for OpenJunto projects.
 
-> **Path resolution — read before treating any `.claude/...` path below as literal.** The paths in this document (`.claude/BACKLOG.md`, `.claude/state/session.md`, `.claude/artifacts/`, `.claude/backlog/detail/`) are the default layout: oj state lives directly under `.claude/`. The source of truth at runtime is `oj-helper resolve-path <key>` (keys: `session`, `backlog`, `artifacts`, `state-dir`, `config`, `retros`). A project that must relocate state sets per-key overrides in `<root>/.claude/oj-paths.env` (e.g. `session=.claude/custom/session.md`); an override wins over the default. Always resolve before reading or writing state.
+> **Path resolution — read before treating any `.claude/...` path below as literal.** The paths in this document (`.claude/BACKLOG.md`, `.claude/state/session.md`, `.claude/artifacts/`, `.claude/backlog/detail/`) are the default layout: oj state lives directly under `.claude/`. The source of truth at runtime is `oj-helper resolve-path <key>` — **state keys** `session`, `backlog`, `artifacts`, `state-dir`, `config`, `retros`, and **category keys** `decisions`, `facts`, `open-questions`, `requirements`, `design`, `plan`. There is also the override-only key `id-index`, which has no default under either layout. A project that must relocate state sets per-key overrides in `<root>/.claude/oj-paths.env` (e.g. `session=.claude/custom/session.md`); an override wins over the default. Always resolve before reading or writing state.
+>
+> Two layouts are supported. `flat` (the default) is what this document describes: state directly under `.claude/`, one backlog, one artifacts directory, and the category keys unset — `resolve-path` exits **3** for them, which is a caller's signal to fall back, distinct from the exit 1 an unknown key gets. `hierarchy` (opt in with `layout=hierarchy`) resolves the category keys to `<node>/<type>.md`, where `--node <relpath>` selects the owning node. A backlog may then be several files: enumerate with `oj-helper backlog-list` to READ, and keep using `resolve-path backlog` for the single path to WRITE.
+
+---
+
+## Filing Rule — where a produced document goes
+
+**A skill that produces a document must also file it.** Producing a design doc and dropping it in a dump directory leaves a human to re-file it; that re-filing is the work the taxonomy exists to remove. Apply this procedure whenever cycle, run-task, spec, or workstream-new emits a durable document.
+
+### Procedure
+
+1. **Classify the document by type**, not by which skill made it or what subject it concerns. The types are: **decision**, **fact**, **requirement**, **design**, **plan**, **review**, **analysis**.
+2. **Ask for that type's key**: `oj-helper resolve-path <type>` — `decisions`, `facts`, `open-questions`, `requirements`, `design`, `plan`. Add `--node <relpath>` to name the node that owns the subject matter (`oj-helper resolve-path design --node billing/invoicing`).
+3. **If the key resolves (exit 0)**, append to or create that file at the owning node. Appending to an existing typed file is the normal case, not an exception — `decisions.md` accumulates.
+4. **If it does not resolve (exit 3)**, this is a `flat`-layout project with no per-type filing surface. Fall back to one document under the artifacts root from `oj-helper resolve-path artifacts` (fallback `.claude/artifacts/`). This fallback is what keeps the rule non-breaking for projects that never adopted a taxonomy.
+
+`review` and `analysis` have no category key by design — see below.
+
+### A review is not a design
+
+Point-in-time findings **about** existing work are ephemeral: they age out as the work changes, and they describe a snapshot rather than the current intent. New content — what the thing *is* and *should be* — belongs at the node, in `design.md` / `decisions.md` / `requirements.md`. A review belongs in a history area (`oj-helper resolve-path retros`, or the artifacts root).
+
+Conflating the two is expensive and hard to reverse: filing genuine design content as a review buries it in a dated folder nobody cites, and it stops being the answer to "what is the current design?" even though it is. When a document contains both — a review that concludes with new intent — **split it**: the findings go to history, the intent goes to the node.
+
+### A fact needs provenance
+
+If the target project's `facts/` area requires a provenance marker, a skill that appends a bare number is producing a defect, not a fact. Check for the convention (a `README.md` in the `facts` directory usually states it) and carry the marker. A common scheme:
+
+| Marker | Meaning |
+|--------|---------|
+| `MEASURED` | Observed directly; name the command, query, or dashboard that produced it |
+| `DERIVED` | Computed from other facts; name them |
+| `ASSERTED-UNVERIFIED` | Believed but not checked; **state the verification path** |
+
+**Prefer `ASSERTED-UNVERIFIED` with a stated verification path over a bare number.** An unverified fact that says how to verify itself is useful and honest; a bare number is indistinguishable from a measured one and quietly becomes load-bearing. Never upgrade a marker without running the check that justifies it.
 
 ---
 

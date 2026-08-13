@@ -21,13 +21,18 @@ Below the threshold, report the current size and stop -- compaction on a small f
 
 ## Protocol
 
-### Step 0 -- Resolve the backlog path
+### Step 0 -- Resolve the backlog file(s)
 
 ```bash
-oj-helper resolve-path backlog   # -> <backlog-file>
+oj-helper backlog-list           # -> zero or more absolute paths, one per line
+oj-helper resolve-path backlog   # -> <backlog-file>, the single-file fallback
 ```
 
-Throughout, `<backlog-file>` is that resolved absolute path. **Fallback:** if `oj-helper` prints nothing, default to `.claude/BACKLOG.md`. If the project is in issue-tracker mode (`oj-helper issue-tracker-check` returns a non-null project), there is no large local file to compact -- report that and stop.
+Throughout, `<backlog-file>` is one resolved absolute path. **Fallback:** if `backlog-list` prints nothing, use `oj-helper resolve-path backlog`; if that prints nothing, default to `.claude/BACKLOG.md`. If the project is in issue-tracker mode (`oj-helper issue-tracker-check` returns a non-null project), there is no large local file to compact -- report that and stop.
+
+**Compaction operates PER FILE, one file at a time.** When `backlog-list` returns several paths, measure each independently and compact only the ones over the threshold: size is a per-file property, and a project splits its backlog precisely so that each piece stays small enough to hold in view. Never merge several files into one as part of compaction -- that would undo the split the project deliberately made, which is a structural decision belonging to the user, not a side effect of a hygiene pass. Run Steps 1-6 to completion for one file (including its own pin and its own confirmation gate) before starting the next, and report per-file results.
+
+Before compacting a multi-file set, run `oj-helper backlog-lint` and **surface any findings to the user first**. A duplicate or colliding id is exactly the kind of defect a rewrite can entrench or quietly "resolve" by dropping one of the two items; the user should see it as a distinct problem, not have it folded into a compaction diff.
 
 ### Step 1 -- Measure and gate
 

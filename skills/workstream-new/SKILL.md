@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /oj:workstream-new
 
-Set up an isolated execution environment for a parallel `/oj:cycle` thread. Each workstream gets its own directory, its own git worktree, and a per-workstream `.claude/CLAUDE.md` enforcing a tagging discipline — while sharing the canonical `.claude/BACKLOG.md`, `.claude/state/session.md`, and `.claude/artifacts/` with every other workstream in the same workspace.
+Set up an isolated execution environment for a parallel `/oj:cycle` thread. Each workstream gets its own directory, its own git worktree, and a per-workstream `.claude/CLAUDE.md` enforcing a tagging discipline — while sharing the canonical oj state with every other workstream in the same workspace: `.claude/BACKLOG.md`, `.claude/state/session.md`, `.claude/artifacts/`, `.claude/oj-paths.env`, and any root-level category files (`.claude/decisions.md`, `.claude/open-questions.md`, `.claude/facts/`) the workspace has. Documents produced inside a workstream are filed by type like anywhere else (`${CLAUDE_PLUGIN_ROOT}/reference/file-patterns.md` § Filing Rule), with the `[ws: <wsid>]` tag carried into every shared-file append.
 
 > Use this when you want to run multiple `/oj:cycle` invocations concurrently against the same workspace without file collisions. Each workstream is a separate `claude` session, each targeting its own git worktree on its own branch.
 

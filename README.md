@@ -53,7 +53,7 @@ The Manager handles triage, expert selection, peer review, and quality gates. Yo
 
 ## Advanced: Backlog Sprint
 
-For projects with a `.claude/BACKLOG.md`, run:
+For projects with a file-backed backlog (`oj-helper resolve-path backlog`, `.claude/BACKLOG.md` by default), run:
 
 ```bash
 claude '/run-task'

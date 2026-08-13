@@ -76,6 +76,26 @@ Assertions:
 - Exit code is `0` (grep found at least one matching line).
 - The matched line is the SubagentStart entry that drives expert-profile injection. If absent, no expert profiles will reach spawned sub-agents.
 
+### Probe 6 — state-path resolution and backlog integrity
+
+```bash
+oj-helper resolve-path backlog
+oj-helper backlog-list
+oj-helper backlog-lint
+```
+
+Assertions:
+
+- `resolve-path backlog` exits `0` and prints exactly one absolute path. A non-zero exit here means the workspace root could not be resolved, and every state-touching skill will be operating on guesses.
+- Any `WARNING:` on stderr from `resolve-path` is reported as **DEGRADED**, not ignored: it means an override in `.claude/oj-paths.env` is workspace-relative but escapes `.claude/`, so it resolves outside the state tree. The path still resolves, which is why this is silent without the probe.
+- `backlog-list` exits `0`. Report how many paths it printed. Zero is legitimate (a project with no backlog yet) — report it as a fact, not a failure.
+- `backlog-lint` exits `0` (clean) or `1` (findings). **Exit 1 is DEGRADED, not FAIL**: the plugin is working correctly and is telling you the project's backlog has a structural defect. Report each finding verbatim. These three defect classes are invisible to a human reading the files, which is the reason to probe for them at all:
+  - `DUPLICATE-ANCHOR` — an anchor defined twice; inbound links only ever reach the first.
+  - `DUPLICATE-ID` — an item id defined twice in one file; the second is unreachable.
+  - `ID-COLLISION` — the same id defined in two different files, so inbound links resolve to whichever is read first. Only possible once a backlog is split across files.
+
+This probe checks the *project's* state, not the plugin's install. Keep the distinction in the report: a `backlog-lint` finding is not a broken plugin.
+
 ## Reporting
 
 After running every probe, write a brief report covering:
@@ -90,6 +110,8 @@ After running every probe, write a brief report covering:
    - Probe 3 fails → "Install jq: `brew install jq` (macOS) or `apt install jq` (Ubuntu)."
    - Probe 4 returns null → "`.claude-plugin/plugin.json` is corrupt. Re-extract or reinstall the plugin."
    - Probe 5 finds no match → "SubagentStart hook missing. Inspect `hooks/hooks.json` and verify the `oj-helper inject-profile` entry under `SubagentStart`."
+   - Probe 6 emits a `resolve-path` prefix WARNING → "An override in `.claude/oj-paths.env` resolves outside the state tree. Prefix the value with `.claude/` if that was not intended."
+   - Probe 6 `backlog-lint` exits 1 → "The project's backlog has a structural defect (not a plugin fault). Fix the duplicate/colliding ids before relying on inbound links; `oj-helper backlog-lint` names each one and its file."
 
 ## Notes for the LLM running this skill
 

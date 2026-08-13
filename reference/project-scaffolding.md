@@ -68,7 +68,9 @@ The file is not auto-loaded. The manager reads it explicitly when orienting in a
 
 ## Artifact Organization
 
-Four subdirectories under `.claude/artifacts/`, each with a distinct lifecycle.
+> **This section describes the `flat` layout.** Resolve the artifacts root with `oj-helper resolve-path artifacts` rather than treating `.claude/artifacts/` as literal. Under a `hierarchy` layout that key is deliberately unset (exit 3) and there is **no** artifacts directory: a document goes to the node that owns the subject matter, in the file named for its type. Classify first, then file — see `file-patterns.md` § Filing Rule, which governs in both layouts and falls back to the subdirectories below only when no type key resolves.
+
+Four subdirectories under the resolved artifacts root, each with a distinct lifecycle.
 
 | Subdirectory | Purpose | Lifecycle |
 |--------------|---------|-----------|

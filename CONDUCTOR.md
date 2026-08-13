@@ -57,7 +57,7 @@ Options: Simplify scope | Proceed with documented risks | Pause for info | Aband
 
 ### External Artifact Hygiene
 
-**NEVER** include `.claude/BACKLOG.md` item identifiers (e.g., backlog numbers, `BL-*` references) in branch names, commit messages, PR titles, PR descriptions, or any other externally visible artifact. These identifiers are local to the project and carry no context outside of it.
+**NEVER** include local backlog item identifiers (e.g., backlog numbers, `BL-*` references) in branch names, commit messages, PR titles, PR descriptions, or any other externally visible artifact. These identifiers are local to the project and carry no context outside of it — and where the backlog is split across several files, an id may not even be unique outside the project.
 
 **issue tracker IDs are the exception** — work item IDs (e.g., `PROJ-123`) SHOULD appear in commits and PRs per standard engineering practice.
 

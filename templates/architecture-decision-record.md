@@ -1,6 +1,19 @@
 # ADR-[NUMBER]: [TITLE]
 
-<!-- Use this template for significant technical decisions requiring documentation. File under `.claude/artifacts/analysis/adr-NNNN-slug.md` or a project-specific ADR directory. Each ADR is written once and only amended via Status changes or a superseding ADR. -->
+<!-- Use this template for significant technical decisions requiring documentation.
+
+     WHERE THIS GOES: an ADR is a DECISION, so file it by that type. Run
+     `oj-helper resolve-path decisions` (add `--node <relpath>` for the node that
+     owns the subject) and append there — under a type-based layout, decisions
+     accumulate in one file per node rather than one file per decision. If the
+     key exits 3 the project has no decisions surface: fall back to
+     `oj-helper resolve-path artifacts` (default `.claude/artifacts/analysis/adr-NNNN-slug.md`)
+     or a project-specific ADR directory.
+     Full procedure: reference/file-patterns.md § Filing Rule.
+
+     Each ADR is written once and only amended via Status changes or a
+     superseding ADR — never edited or deleted, since the fact that it was once
+     the answer is part of why the current answer is what it is. -->
 
 ## Status
 
