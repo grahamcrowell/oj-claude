@@ -1,6 +1,10 @@
 ---
 name: senior-security-engineer
 description: Delegate when regulated-data handling, authentication/authorization, cryptography and key management, new trust boundaries, or compliance-driven work (PCI, HIPAA, SOC 2, GDPR) is the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Security Engineer

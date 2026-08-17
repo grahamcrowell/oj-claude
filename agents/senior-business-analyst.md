@@ -1,6 +1,10 @@
 ---
 name: senior-business-analyst
 description: Delegate when requirements elicitation, process redesign, stakeholder mapping, or a cross-cutting review of product scope and requirements is the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Business Analyst

@@ -1,6 +1,10 @@
 ---
 name: senior-data-scientist
 description: Delegate when experiment design, statistical metric definition, causal claims about a product change, or multi-experiment portfolio decisions are the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Data Scientist

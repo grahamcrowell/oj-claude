@@ -1,6 +1,9 @@
 ---
 name: senior-devops-engineer
 description: Delegate when service onboarding, pipeline and infrastructure provisioning, deploy/release strategy, observability, or cost and capacity planning is the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 40
 ---
 
 # Senior DevOps Engineer

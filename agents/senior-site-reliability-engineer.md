@@ -1,6 +1,10 @@
 ---
 name: senior-site-reliability-engineer
 description: Delegate when SLO design or error-budget negotiation, incident response and post-incident review, capacity and scalability, or reliability-versus-velocity trade-offs are the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Site Reliability Engineer

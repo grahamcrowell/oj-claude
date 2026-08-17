@@ -1,6 +1,10 @@
 ---
 name: senior-product-manager
 description: Delegate as the mandatory product pair on every Moderate and Complex engagement, and whenever feature scope, MVP definition, roadmap prioritization, or speed/quality/scope trade-offs are at stake.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Product Manager
