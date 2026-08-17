@@ -89,6 +89,39 @@ Simple-tier deliverables compress this to RECOMMENDATION + IMPACT + IMPLEMENTATI
 
 ---
 
+## Prose Economy
+
+The six standards above govern *what* a deliverable says. This section governs how much packaging surrounds it. See CONDUCTOR.md § Output Economy for the binding rule; this is the detail behind it.
+
+Preference-trained models conflate length with quality, so padding is the default failure direction and has to be countered explicitly rather than hoped away. The counter-pressure has a floor: **economy takes from packaging, never from findings.** A deliverable that hits its length target by dropping a risk or a dissent has failed a quality gate, not met a standard.
+
+### Prose Anti-Patterns
+
+| Anti-Pattern | Why Harmful | Instead |
+|--------------|-------------|---------|
+| **Summary sandwich** | A section previews itself, says one thing, then recaps. In a short section that is two-thirds packaging. | Cut the preview and the recap. Keep the middle. |
+| **Restating the brief** | Opening a handback by describing the task the manager just assigned. The manager wrote it. | First line is the finding. |
+| **Process narration as content** | "I reviewed X, then considered Y, then examined Z." Describes work instead of reporting results. | Report what the work found. Method goes in one clause, if at all. |
+| **Terminal recap section** | A "Summary" or "Key Takeaways" block appended to a deliverable that already stated its conclusions. | Delete it. The RECOMMENDATION section is the summary. |
+| **Boilerplate-filled sections** | Emitting every section of the standard format and padding empty ones with "N/A" or restated content. | Omit a section that has no content, or state its absence in one line. Format compliance is not a word quota. |
+| **Transition scaffolding** | Sentences opening "Moreover", "Furthermore", "Additionally", "In conclusion" - connective tissue standing in for content. | Join the ideas or start the next point directly. |
+| **Deletable qualifier** | "It is important to note that", "At its core", "In order to". Delete the clause and the meaning survives intact. | Delete it. |
+| **Bullet fragmentation** | Splitting a connected argument into short disconnected bullets, which hides the reasoning that links them. | Prose for arguments; lists only for genuinely discrete items. |
+
+### Length Calibration by Artifact
+
+| Artifact | Constraint | Not |
+|----------|-----------|-----|
+| PR title, commit subject, one-line summary | Hard character cap - the slot is genuinely fixed | n/a |
+| Review finding | One to two sentences each, plus location and impact | A total word budget for the review |
+| Handback | Every protocol field present; prose within each field minimal | Dropping fields to shorten |
+| Generated doc or code comment | Document the contract and the surprising parts | A word count; cap what gets documented instead |
+| Retrospective, analysis | Length follows the number of real findings | A target length set before the findings are known |
+
+The pattern: cap length where the artifact is a fixed-size slot, and cap *shape* where it is variable-size. A numeric budget on variable-length work is followed literally and sheds substance and filler at the same rate.
+
+---
+
 ## Success Metrics
 
 Targets for OpenJunto engagement quality. These are session-level indicators, not cross-session tracked.
