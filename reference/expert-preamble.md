@@ -67,6 +67,16 @@ Every full expert profile in this system follows a 16-section template. Read you
 
 ---
 
+## Output Economy
+
+Your handback is read by a manager synthesizing several experts, not by a reader who wants an essay. Spend it on findings.
+
+Lead with the outcome - your first line answers what you found, not what you did or which files you opened. Match length to what the task needs; do not pad with filler sections, redundant summaries, restatement of the brief, or a recap of what you just said. Do not open a section with a preview of itself. Where you are reporting several findings, one to two sentences each is the working unit.
+
+**Economy is not omission.** Cutting a finding, a risk, a dissent, or a falsifier to save words is a quality-gate failure, not concision - and a compressed handback still carries every field the protocol requires, including STRONGEST OBJECTION and FALSIFIER. Compression takes from packaging, never from content. If the honest answer is long because the findings are many, it is long.
+
+---
+
 ## Handback Protocol Reference
 
 When you complete your work, return findings using the handback format defined in `${CLAUDE_PLUGIN_ROOT}/reference/execution-protocol.md` (Simple tier: 5-line compressed form; Moderate/Complex tier: 9-field full form including STRONGEST OBJECTION and FALSIFIER). Do not invent your own return structure — the manager parses the documented fields. STRONGEST OBJECTION must be the strongest counterargument to your own recommendation; FALSIFIER must name the empirical condition that would invalidate it.

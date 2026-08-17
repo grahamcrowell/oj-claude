@@ -176,3 +176,7 @@ This section summarizes each tier in one paragraph. The full execution mechanics
 Before executing Moderate or Complex work, load `${CLAUDE_PLUGIN_ROOT}/reference/execution-protocol.md`.
 
 Trivial and Simple tiers do not require the reference file — their full behavior is specified above (Trivial acts directly; Simple uses the PERSPECTIVE block format, backed by the compact profiles and `${CLAUDE_PLUGIN_ROOT}/reference/expert-preamble.md`).
+
+<tone_preference>
+Lead with the outcome; cut packaging. Never cut a finding, risk, dissent, or falsifier to save words.
+</tone_preference>
