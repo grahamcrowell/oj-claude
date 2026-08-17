@@ -1249,6 +1249,7 @@ EOF
 #   oj-helper resolve-path <key> [--workspace PATH] [--node RELPATH]
 #
 #   state keys:    session | backlog | artifacts | state-dir | config | retros
+#                  | reviews
 #   category keys: decisions | facts | open-questions | requirements |
 #                  design | plan
 #
@@ -1269,7 +1270,7 @@ EOF
 #     `.claude/state/`, `.claude/BACKLOG.md`, `.claude/artifacts/`. (Earlier
 #     releases also probed a `.claude/local/` canonical-state-root; that layout
 #     was removed so resolve-path never points at nonexistent `local/` paths.)
-#     The six state keys resolve. The category keys are deliberately UNSET
+#     The seven state keys resolve. The category keys are deliberately UNSET
 #     (exit 3, below): a flat project has no per-type filing surface, and
 #     inventing one (`.claude/DECISIONS.md`) would aim skills at a file the
 #     project does not keep. An unset key that fails loudly beats a key that
@@ -1312,7 +1313,7 @@ EOF
 
 # Canonical key lists. Referenced by the usage/error strings below and by the
 # `help` output, so the enumeration has one source rather than four.
-OJ_RESOLVE_PATH_STATE_KEYS="session backlog artifacts state-dir config retros"
+OJ_RESOLVE_PATH_STATE_KEYS="session backlog artifacts state-dir config retros reviews"
 OJ_RESOLVE_PATH_CATEGORY_KEYS="decisions facts open-questions requirements design plan"
 # Keys with no default under ANY profile — override-only (see the case below).
 OJ_RESOLVE_PATH_OPTIONAL_KEYS="id-index"
@@ -1401,6 +1402,12 @@ cmd_resolve_path() {
     state-dir)  rel=".claude/state" ;;
     config)     rel=".claude" ;;
     retros)     rel=".claude/archive/retros" ;;
+    # reviews is a history area, not a category key, and that is the whole
+    # point: a review is a point-in-time finding ABOUT work, so it ages out as
+    # the work changes (reference/file-patterns.md § A review is not a design).
+    # Filing it at the node would make it answer "what is the current design?"
+    # when it does not. It sits beside retros for the same reason retros does.
+    reviews)    rel=".claude/archive/reviews" ;;
     decisions|facts|open-questions|requirements|design|plan)
       if [[ "$layout" == "hierarchy" ]]; then
         case "$key" in
@@ -1843,7 +1850,7 @@ SUBCOMMANDS:
   migrate-legacy       Detect Makefile-era install and write migration sentinels
   feedback-path        Output feedback file path for dev mode (OJ_DEVMODE=1)
   resolve-path         Echo the canonical path for a state key
-                       state:    session|backlog|artifacts|state-dir|config|retros
+                       state:    session|backlog|artifacts|state-dir|config|retros|reviews
                        category: decisions|facts|open-questions|requirements|design|plan
                        (category keys need layout=hierarchy in .claude/oj-paths.env; exit 3 if unset)
                        override-only: id-index

@@ -36,6 +36,24 @@ The manager protocol loads at session start. Put OpenJunto to work by invoking a
 
 The Manager handles triage, expert selection, peer review, and quality gates. You don't invoke experts by name — the Manager selects them.
 
+### Commands
+
+| Command | What it does |
+|---------|--------------|
+| `/oj:cycle` | Loop the backlog: triage, delegate, review, test, commit, per item |
+| `/oj:run-task` | Run exactly one backlog item through the 5-phase lifecycle, locally |
+| `/oj:impl <project/domain> [id]` | Deliver one item as a reviewed **draft PR**: branch, lifecycle, push gate, PR |
+| `/oj:watch-pr <pr>` | Watch an open PR through CI and review until a human merges, then close out the item |
+| `/oj:review [--fix] [--comment] <path\|pr>` | Adversarially review a path or PR; file findings; optionally fix confirmed ones or post them |
+| `/oj:spec <op> <project/domain> [id]` | Author requirements / design / plan for a subject and graduate its tasks (`reqs\|design\|plan\|refresh\|capture`) |
+| `/oj:show-backlog` | Read-only backlog summary by priority |
+| `/oj:save-session` | Persist session state before `/clear` |
+| `/oj:backlog-compact` | Size-triggered backlog hygiene |
+| `/oj:workstream-new` | Scaffold an isolated parallel execution thread |
+| `/oj:health-check` | Diagnose plugin runtime health |
+
+Delivery is split on purpose: `/oj:impl` stops at the draft PR, and `/oj:watch-pr` carries it the rest of the way. Waiting on CI and on a human reviewer is open-ended, so it belongs in a command you can re-invoke rather than inside the one that wrote the code.
+
 ## What's Included
 
 - **16 expert agents** — full + compact profiles in [`agents/`](agents/)

@@ -227,7 +227,7 @@ assert "T-B5.6 unknown profile: exit 0" "$([[ "${INJECT_RC}" -eq 0 ]] && echo ok
 assert "T-B5.6 unknown profile: injects nothing" "$([[ -z "${UNK_CTX}" ]] && echo ok || echo no)"
 
 echo "-- C6: skill invocation controls --"
-for s in cycle run-task save-session spec backlog-compact workstream-new; do
+for s in cycle run-task save-session spec backlog-compact workstream-new impl review watch-pr; do
   assert "T-B6.1 skills/${s} sets disable-model-invocation: true" \
     "$(hasF "skills/${s}/SKILL.md" 'disable-model-invocation: true')"
 done
@@ -241,9 +241,9 @@ for s in show-backlog health-check; do
 done
 
 echo "-- C7: version --"
-assert "T-B7.1 VERSION == 0.5.1" "$([[ "$(cat VERSION)" == "0.5.1" ]] && echo ok || echo no)"
-assert "T-B7.2 plugin.json version == 0.5.1" \
-  "$([[ "$(jq -r .version .claude-plugin/plugin.json)" == "0.5.1" ]] && echo ok || echo no)"
+assert "T-B7.1 VERSION == 0.6.0" "$([[ "$(cat VERSION)" == "0.6.0" ]] && echo ok || echo no)"
+assert "T-B7.2 plugin.json version == 0.6.0" \
+  "$([[ "$(jq -r .version .claude-plugin/plugin.json)" == "0.6.0" ]] && echo ok || echo no)"
 assert "T-B7.3 CHANGELOG has v0.1.0 section" "$(hasF CHANGELOG.md '## v0.1.0')"
 assert "T-B7.4 CHANGELOG has v0.1.1 section" "$(hasF CHANGELOG.md '## v0.1.1')"
 assert "T-B7.5 CHANGELOG has v0.2.0 section" "$(hasF CHANGELOG.md '## v0.2.0')"
@@ -252,6 +252,7 @@ assert "T-B7.7 CHANGELOG has v0.3.0 section" "$(hasF CHANGELOG.md '## v0.3.0')"
 assert "T-B7.8 CHANGELOG has v0.4.0 section" "$(hasF CHANGELOG.md '## v0.4.0')"
 assert "T-B7.10 CHANGELOG has v0.5.0 section" "$(hasF CHANGELOG.md '## v0.5.0')"
 assert "T-B7.11 CHANGELOG has v0.5.1 section" "$(hasF CHANGELOG.md '## v0.5.1')"
+assert "T-B7.12 CHANGELOG has v0.6.0 section" "$(hasF CHANGELOG.md '## v0.6.0')"
 assert "T-B7.9 VERSION agrees with plugin.json" \
   "$([[ "$(cat VERSION)" == "$(jq -r .version .claude-plugin/plugin.json)" ]] && echo ok || echo no)" \
   "VERSION and .claude-plugin/plugin.json must not drift"
@@ -261,6 +262,76 @@ assert "T-B7.9 VERSION agrees with plugin.json" \
 assert "T-B7.11 newest CHANGELOG section == VERSION" \
   "$([[ "$(grep -m1 -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sed 's/^## v//')" == "$(cat VERSION)" ]] && echo ok || echo no)" \
   "the top CHANGELOG section must document the version being shipped"
+
+echo
+echo "-- C8: command surface (impl / review / watch-pr, argument plumbing, reviews key) --"
+
+# Every skill that takes arguments declares argument-hint AND consumes
+# $ARGUMENTS explicitly. Without the placeholder the host silently appends
+# "ARGUMENTS: <value>" to the body, which gives the skill no positional
+# binding and no way to reject a bad arity — the failure this suite exists
+# to prevent is a skill that runs anyway on a mis-parsed argument.
+for s in spec impl review watch-pr workstream-new; do
+  assert "T-B8.1 skills/${s} declares argument-hint" \
+    "$(has "skills/${s}/SKILL.md" '^argument-hint:')"
+done
+for s in spec impl review watch-pr; do
+  assert "T-B8.2 skills/${s} consumes \$ARGUMENTS explicitly" \
+    "$(hasF "skills/${s}/SKILL.md" '$ARGUMENTS')"
+  assert "T-B8.3 skills/${s} validates arity and stops" \
+    "$(has "skills/${s}/SKILL.md" 'usage line')"
+done
+
+# The orchestration-command list is authoritative and single-sourced. A
+# code-writing command missing from it makes Self-Check step 0 answer "no",
+# so the delegation boundary fails OPEN and peer review is skipped silently.
+for c in '/oj:impl' '/oj:review' '/oj:watch-pr'; do
+  assert "T-B8.4 CONDUCTOR orchestration list names ${c}" \
+    "$(hasF CONDUCTOR.md "${c}")"
+done
+# ...and the list exists in exactly one place: the duplicate enumerations in
+# Self-Check and Triage Requirement were what let the list go stale before.
+assert "T-B8.5 CONDUCTOR enumerates the command list once" \
+  "$([[ "$(grep -cF '/oj:run-task`' CONDUCTOR.md)" -eq 1 ]] && echo ok || echo no)" \
+  "expected exactly 1 enumeration, got $(grep -cF '/oj:run-task`' CONDUCTOR.md)"
+
+# reviews path key: resolves by default, and is NOT hardcoded in the skill.
+assert "T-B8.6 oj-helper lists reviews as a state key" \
+  "$(has bin/oj-helper '^OJ_RESOLVE_PATH_STATE_KEYS=.*reviews')"
+assert "T-B8.7 resolve-path reviews resolves" \
+  "$(bin/oj-helper resolve-path reviews --workspace . >/dev/null 2>&1 && echo ok || echo no)"
+assert "T-B8.8 review skill resolves the path, never hardcodes it" \
+  "$(grep -qF 'resolve-path reviews' skills/review/SKILL.md && ! grep -qE '\.claude/(history|archive)/reviews' skills/review/SKILL.md && echo ok || echo no)" \
+  "skills/review must call resolve-path reviews and contain no literal reviews path"
+
+# Axiom 1 in the one command whose entire job is review: the reviewer is a
+# separate agent. A /oj:review that reviews inline has removed the mechanism
+# it depends on, and would still look like it worked.
+assert "T-B8.9 review skill forbids reviewing inline" \
+  "$(hasF skills/review/SKILL.md 'MUST NOT perform this review itself')"
+assert "T-B8.10 review skill fixes only CONFIRMED findings" \
+  "$(hasF skills/review/SKILL.md 'Only `CONFIRMED` findings are eligible')"
+
+# One-way doors: impl gates the push and stops at the draft PR; watch-pr
+# never merges. D56 names push an irreversible action that must be surfaced.
+assert "T-B8.11 impl gates the push on approval" \
+  "$(hasF skills/impl/SKILL.md 'Write nothing to the remote until approved')"
+assert "T-B8.12 impl ends at the draft PR (never merges)" \
+  "$(hasF skills/impl/SKILL.md 'never merges')"
+assert "T-B8.13 watch-pr never merges" \
+  "$(hasF skills/watch-pr/SKILL.md 'Never merge')"
+assert "T-B8.14 impl composes the lifecycle rather than restating it" \
+  "$(hasF skills/impl/SKILL.md 'skills/run-task/SKILL.md')"
+
+# spec ops: capture added, refine never shipped (it only duplicated refresh's
+# scope), refresh keeps its propagate-and-re-graduate meaning.
+assert "T-B8.15 spec declares the capture op" "$(hasF skills/spec/SKILL.md '| `capture` |')"
+assert "T-B8.16 spec has no refine op" \
+  "$(grep -qF '`refine`' skills/spec/SKILL.md && echo no || echo ok)"
+assert "T-B8.17 spec refresh still re-runs graduation" \
+  "$(hasF skills/spec/SKILL.md 'Re-run **Step G**')"
+assert "T-B8.18 spec capture is barred from context: fork" \
+  "$(hasF skills/spec/SKILL.md 'never** run with `context: fork`')"
 
 # ══════════════════════════════════════════════════════════════════════
 # Tier D — assessment recommendation traceability (14 items, P1-P5)

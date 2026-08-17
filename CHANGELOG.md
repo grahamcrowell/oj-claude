@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.6.0 - 2026-08-17 - command surface: impl, review, watch-pr, and argument plumbing
+
+**Provenance**: hand-cut into oj-claude, **with sources in lockstep** - `juntospec/D56-commands-automation.md` and `juntogen/claude/steps/step-06-commands.md` + `step-07-helper-script.md` carry the same change, so a regen reproduces it.
+
+Three new commands and a reworked `/oj:spec`, from a review of the proposed command surface against the Claude Code skills contract and this plugin's own specs.
+
+**New commands**:
+- **`/oj:impl <project/domain> [id]`** - deliver ONE backlog item as a reviewed **draft PR**. It is deliberately a thin composition over the existing 5-phase lifecycle rather than a third implementation protocol: selection, triage, execution and testing are `/oj:run-task`'s, and this command adds only branch isolation up front and PR delivery at the end.
+- **`/oj:watch-pr <pr>`** - carry an open PR through CI and review until a human merges it, then close out the item. **Split from `/oj:impl` on purpose**: the wait for CI and for a reviewer is open-ended, so folding it into the invocation that wrote the code would make that invocation un-resumable and spend a session's context waiting. Every invocation re-derives state from the PR, so resuming is always safe and interruption costs nothing.
+- **`/oj:review [--fix] [--comment] <path|pr>`** - adversarial review of existing work. This is the **ad-hoc activation mode** D56 has always described ("Review this PR for security issues") and never had a command for. Flags match the host's bundled `/code-review` so the muscle memory transfers.
+
+**The delegation boundary was failing open, by construction.** Its SCOPE was an explicit enumeration of `/oj:cycle` and `/oj:run-task`, and Self-Check step 0 answers "no" - implement directly - for anything absent from it. A new command that writes code would therefore have skipped the delegation boundary, and with it the peer review, inside the very command whose protocol says the adversarial review is mandatory. The list now names all five orchestration commands and is **enumerated once**: the duplicate copies in Self-Check and the Triage Requirement now point at it instead of restating it, which is what let it go stale. Net cost 21 bytes, so the CONDUCTOR injection budget still holds at 14,856 of 15,000.
+
+**`git push` is treated as the one-way door D56 says it is.** `D56` names push an irreversible action that must be surfaced rather than performed autonomously, so `/oj:impl` gates it behind an explicit approval showing the branch, commits, verification output and review verdict, and nothing reaches the remote until approved. `/oj:impl` ends at the draft PR; neither it nor `/oj:watch-pr` ever merges, force-pushes, or pushes to `main`.
+
+**`reviews` is now a resolved path key, not a literal.** New state key, default `.claude/archive/reviews`, override-able per project via `reviews=` in `.claude/oj-paths.env`. A hardcoded review path would resolve correctly only in the workspace it was written for and silently write outside the state tree everywhere else - the exact failure mode `resolve-path` exists to prevent. `reviews` sits beside `retros` rather than becoming a category key because a review is a point-in-time finding about work, so filing it at the node would make it answer "what is the current design?" when it does not.
+
+**Findings are typed, and only demonstrated ones are auto-fixed.** `/oj:review` reports through `ReportFindings` with a `CONFIRMED` / `PLAUSIBLE` verdict, and `--fix` acts on `CONFIRMED` only - patching a merely plausible finding changes working code on a guess. The fixer is a **different agent than the reviewer**: an agent that patches its own findings is grading its own work, which reintroduces the coherent-affirmation failure Axiom 1 exists to prevent. `--comment` is gated on approval, is idempotent against a per-head-SHA marker so a re-run cannot double-post, and its findings must be self-contained - no `.claude/` path and no local backlog id can appear in text a teammate reads.
+
+**`/oj:spec` gains a subject and a fifth op**:
+- Signature is now `/oj:spec <op> <project/domain> [ID]`. The subject binds directly to the `--node` argument `resolve-path` already takes, replacing an inference the skill previously had to make about which node owns the work.
+- **`capture`** folds rulings made in the current session into the subject's existing docs, with `[ID]` narrowing to one tracked item. It is barred from `context: fork`, which would start with no conversation history and silently capture nothing while reporting success.
+- **`refresh` keeps its meaning** - propagate a changed upstream *document* downstream and re-run graduation idempotently. The proposed `refine` op was dropped: it differed from `refresh` only in scope, which the optional `[ID]` already expresses.
+- `decisions.md` is now an output where a mode settles something, authored against the ADR template and **appended, never renumbered**.
+- Flat-layout behavior is stated rather than implied: under `flat` the category keys exit 3, so `<project/domain>` names the subject but not a directory, and the skill says so and files under `artifacts` instead of inventing a node.
+
+**Argument plumbing across every command that takes arguments.** `spec`, `impl`, `review`, `watch-pr` and `workstream-new` declare `argument-hint` for autocomplete, and each parses `$ARGUMENTS` in an explicit Step 0 with a stated grammar and an arity check that stops rather than guessing. Previously no skill in the plugin referenced `$ARGUMENTS` at all, so the host's fallback appended `ARGUMENTS: <value>` to the body - which gives a skill no positional binding and no way to reject a bad arity. The named-positional `arguments:` frontmatter field is deliberately not used: it cannot express flags or a trailing free-form prompt, both of which this surface needs.
+
+**No skill sets `effort` in frontmatter.** A skill-level override changes effort mid-session, and v0.5.1 established that this invalidates the prompt cache and re-writes the whole prefix at cache-write price. Reviewer depth is bound per agent on the role instead, which is what the corrected `effort_binding: per-agent` already provides.
+
+**Tests**: new `C8` block - argument-hint and `$ARGUMENTS` present on every arg-taking skill, the orchestration list naming all three new commands and enumerated exactly once, `resolve-path reviews` resolving, `/oj:review` calling the resolver and containing no literal reviews path, the inline-review prohibition, the `CONFIRMED`-only fix rule, the push gate, both never-merge rules, and the `spec` op set (capture present, refine absent, refresh still graduating). `T-B6.1` now covers `impl`, `review` and `watch-pr`.
+
 ## v0.5.1 - 2026-08-17 - spawn cost controls
 
 **Provenance**: hand-cut into oj-claude. **Source is NOT in lockstep** - this change reverses the IMMUTABLE `D32-execution-models.md` section 6 decision (one model for all personas, cognitive demand expressed only as effort) and the corresponding juntospec/juntogen sources have not been updated, because they were not reachable from where this was cut. A regen would revert it. Reconcile upstream before the next release.
