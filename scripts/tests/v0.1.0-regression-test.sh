@@ -157,8 +157,16 @@ for p in sorted(glob.glob("agents/senior-*.md")):
         d = yaml.safe_load(block) or {}
     except Exception:
         bad.append(stem + "(unparseable)"); continue
-    if sorted(d.keys()) != ["description", "name"]:
-        bad.append(stem + "(keys=%s)" % sorted(d.keys())); continue
+    # {name, description} are required; the native-spawn keys are permitted.
+    # Anything else is drift - the profile body is the system prompt, not a
+    # place to smuggle configuration.
+    ALLOWED = {"name", "description", "model", "effort", "maxTurns",
+               "tools", "disallowedTools", "skills", "color"}
+    keys = set(d.keys())
+    if not {"name", "description"} <= keys:
+        bad.append(stem + "(missing-required=%s)" % sorted({"name","description"} - keys)); continue
+    if keys - ALLOWED:
+        bad.append(stem + "(unknown-keys=%s)" % sorted(keys - ALLOWED)); continue
     if d.get("name") != stem:
         bad.append(stem + "(name=%r)" % d.get("name")); continue
     if not str(d.get("description", "")).strip():
@@ -166,7 +174,7 @@ for p in sorted(glob.glob("agents/senior-*.md")):
 print(" ".join(bad))
 PY
 )
-assert "T-B4.1 all 16 profiles have two-key {name,description} frontmatter, name==stem" \
+assert "T-B4.1 all 16 profiles carry {name,description} + only permitted native keys, name==stem" \
   "$([[ -z "${FM_BAD}" ]] && echo ok || echo no)" "offenders: ${FM_BAD}"
 
 echo "-- C5: registration hygiene + inject-profile --"
@@ -275,10 +283,22 @@ assert "T-D3 (rec 3) skills say 'do not duplicate it here'" \
 # rec 4 PARTIAL — description-router half landed (C4); native migration DEFERRED
 assert "T-D4 (rec 4) router descriptions phrased as when-to-delegate (spot-check)" \
   "$(hasF agents/senior-software-engineer.md 'Delegate when')"
-NATIVE_KEYS=$(grep -lE '^(tools|model|effort):' agents/senior-*.md 2>/dev/null | tr '\n' ' ' || true)
-assert "T-D4 (rec 4) native-migration keys (tools/model/effort) genuinely absent (deferred)" \
-  "$([[ -z "${NATIVE_KEYS}" ]] && echo ok || echo no)" "unexpected keyed profiles:${NATIVE_KEYS}"
-assert "T-D4 (rec 4) native subagent migration documented as deferred" \
+# rec 4 DONE — native subagent migration: every profile declares model+effort.
+UNKEYED=$(for f in agents/senior-*.md; do
+    grep -qE '^model:' "$f" && grep -qE '^effort:' "$f" || basename "$f"; done | tr '\n' ' ')
+assert "T-D4 (rec 4) every profile declares model and effort" \
+  "$([[ -z "${UNKEYED}" ]] && echo ok || echo no)" "unkeyed profiles:${UNKEYED}"
+# Exactly one authoring role; everyone else is advisory and turn-capped.
+AUTH_MODEL=$(grep -E '^ *default_model:' platform-defaults.yaml | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/')
+AUTH_COUNT=$(grep -lE "^model: ${AUTH_MODEL}\$" agents/senior-*.md 2>/dev/null | wc -l | tr -d ' ')
+assert "T-D4 (rec 4) exactly one authoring-class profile (got ${AUTH_COUNT})" \
+  "$([[ "${AUTH_COUNT}" -eq 1 ]] && echo ok || echo no)"
+UNCAPPED=$(for f in agents/senior-*.md; do
+    grep -qE "^model: ${AUTH_MODEL}\$" "$f" && continue
+    grep -qE '^maxTurns: [0-9]+$' "$f" || basename "$f"; done | tr '\n' ' ')
+assert "T-D4 (rec 4) every advisory profile carries a maxTurns cap" \
+  "$([[ -z "${UNCAPPED}" ]] && echo ok || echo no)" "uncapped:${UNCAPPED}"
+assert "T-D4 (rec 4) native subagent migration recorded as done, with its decision reversal" \
   "$(hasF CHANGELOG.md 'Native subagent migration')"
 
 # rec 5 DEFERRED — profiles still 16-section; deferral documented

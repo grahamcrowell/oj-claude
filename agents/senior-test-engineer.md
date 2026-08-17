@@ -1,6 +1,9 @@
 ---
 name: senior-test-engineer
 description: Delegate when test strategy or quality-gate design, automation-framework selection, defect-pattern or escaped-defect analysis, or release quality-bar negotiation is the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 40
 ---
 
 # Senior Test Engineer

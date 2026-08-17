@@ -1,6 +1,10 @@
 ---
 name: senior-executive-leadership-coach
 description: Delegate when leadership development, organizational-dynamics diagnostics, cross-functional alignment requiring leadership behavior change, or executive communication is the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Executive Leadership Coach

@@ -1,6 +1,10 @@
 ---
 name: senior-solutions-architect
 description: Delegate when a new external integration or partner API, service-to-service contract design, cross-org trust/identity-boundary integration, or migration sequencing is the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Solutions Architect

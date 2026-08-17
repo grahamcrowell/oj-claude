@@ -1,6 +1,9 @@
 ---
 name: senior-technical-writer
 description: Delegate when a documentation program, user-facing copy intersecting docs, a documentation gap treated as a product defect, or information-architecture and taxonomy decisions are the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 40
 ---
 
 # Senior Technical Writer

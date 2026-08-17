@@ -1,6 +1,10 @@
 ---
 name: senior-enterprise-architect
 description: Delegate when a new standard or reference architecture, a standards-exception request, vendor/platform selection, or multi-team shared-platform integration is the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Enterprise Architect

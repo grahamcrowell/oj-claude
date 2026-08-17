@@ -1,6 +1,9 @@
 ---
 name: senior-distinguished-engineer
 description: Delegate as the mandatory technical pair on every Moderate and Complex engagement, and whenever architectural decisions, cross-discipline disputes, or proposed one-way doors are at stake.
+model: sonnet
+effort: high
+maxTurns: 40
 ---
 
 # Senior Distinguished Engineer

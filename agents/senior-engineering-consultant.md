@@ -1,6 +1,10 @@
 ---
 name: senior-engineering-consultant
 description: Delegate when neutral arbitration of an internal dispute, a diagnostic on recurring organizational pain, or independent review of suspected-but-unvalidated consensus is needed.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Engineering Consultant

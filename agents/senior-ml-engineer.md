@@ -1,6 +1,10 @@
 ---
 name: senior-ml-engineer
 description: Delegate when model deployment, retraining or evaluation methodology, feature-store/training/serving infrastructure, or drift, fairness, and calibration questions are the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior ML Engineer

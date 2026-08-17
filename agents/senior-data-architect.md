@@ -1,6 +1,10 @@
 ---
 name: senior-data-architect
 description: Delegate when schema design, pipeline architecture, data-contract negotiation, or data governance, classification, retention, and lineage is the decisive concern.
+model: sonnet
+effort: high
+maxTurns: 30
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # Senior Data Architect

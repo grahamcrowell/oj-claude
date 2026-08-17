@@ -1,6 +1,8 @@
 ---
 name: senior-software-engineer
 description: Delegate when implementation of an approved design, code review on a non-trivial change, a multi-file refactor, or in-code bug root-cause is the decisive concern.
+model: opus
+effort: xhigh
 ---
 
 # Senior Software Engineer
