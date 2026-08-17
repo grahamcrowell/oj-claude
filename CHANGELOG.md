@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.6.1 - 2026-08-17 - Output Economy: prose-volume discipline for the manager and every expert
+
+**Provenance**: hand-cut into oj-claude, **with sources in lockstep** - `juntospec/D08-core-protocol.md` and `juntogen/claude/steps/step-01` + `step-02` + `step-04` carry the same change, so a regen reproduces it.
+
+A cross-cutting rule governing how much prose surrounds the substance in every artifact the system produces. Patch release: no behavioural change to any command, protocol or path key, only the prose discipline applied to output.
+
+**Verbosity is three surfaces, not one.** Conversational response, narration during work, and files written to disk each need their own instruction; a single "be concise" line moves only the first, which is why generic brevity guidance half-works. Two obvious levers do not help and are deliberately unused: effort level controls how much the model thinks rather than how much it says, and a token ceiling truncates rather than compresses.
+
+**The floor clause is the load-bearing part of this release, not the economy rules.** An unqualified brevity instruction is followed literally and suppresses findings - the same failure mode as instructing a reviewer to report only significant issues. Dropped naively into a system whose entire value comes from adversarial review, a conciseness rule would quietly degrade the thing the system exists to do, and nothing would error. So every place the rule appears must also state that economy may not remove findings, risks, dissent, or falsifiers: compression takes from packaging - preamble, recap, restatement, filler - never from content the handback protocol or the quality gates require. `reference/expert-preamble.md` names STRONGEST OBJECTION and FALSIFIER as uncuttable for exactly this reason.
+
+**The rule renders where it is cheapest, and that was forced by the byte budget.** The first cut emitted it as a fifth `Absolute Constraints` subsection in `CONDUCTOR.md` and took the conductor-inject payload from 14,856 to 16,535 bytes, failing the `T-B1.3` assertion that caps it at 15,000. That cap had 144 bytes of headroom and the rule is ~1.7KB, so no version carrying the floor clause could ever have fit. Resolved by splitting render targets rather than by raising the cap:
+
+- **`CONDUCTOR.md`** carries only a 140-byte `<tone_preference>` tail block with both halves - lead with the outcome and cut packaging, and never cut a finding, risk, dissent or falsifier to save words. Tail placement is deliberate: a conciseness rule stated only near the top of a long prompt is diluted by everything after it.
+- **`reference/expert-preamble.md`** carries the full rule scoped to the handback. This is the higher-leverage target regardless of the budget - it loads before every expert profile, and experts author the handbacks and deliverables where prose bloat actually accumulates - and it is not charged to the injection budget.
+- **`reference/communication-standards.md`** carries the remedial detail, on demand at Moderate/Complex: eight worked prose anti-patterns (summary sandwich, restating the brief, process narration as content, terminal recap, boilerplate-filled sections, transition scaffolding, deletable qualifier, bullet fragmentation) and per-artifact length calibration.
+
+**Numeric word counts are specified valid only on fixed-size slots** - PR titles, commit subjects, one-line summaries - and barred from variable-length work. A word budget on a review drops findings rather than tightening them and cannot scale with diff size; reviews and documents constrain the unit instead (one to two sentences per finding). Documentation and code comments constrain *what gets documented* rather than word count.
+
+**`CONDUCTOR.md` now sits at 14,995 bytes against the 15,000-byte cap - 4 bytes of headroom.** Anything added to that file next needs bytes reclaimed first, and whether the cap should be raised deliberately is now an open decision rather than a surprise waiting for the next contributor.
+
+**Spec invariants**: `ECON-001` (every render target emitting a surface rule must also emit the floor clause), `ECON-002` (no numeric word or token budget on any variable-length deliverable), `ECON-003` (the CONDUCTOR tail block must carry the floor half, not the economy half alone). These are declared in the spec but **not yet implemented as suite checks**, so they currently document intent rather than enforce it.
+
+**Not covered by any static check**: the specific regression this change risks is an expert dropping STRONGEST OBJECTION or FALSIFIER under the economy rule. That needs a runtime smoke test against a dev-built plugin in an isolated session and is currently unverified.
+
+**Tests**: regression 120 pass / 0 fail with `T-B1.3` green at 14,995 bytes; `tier-a-assertions` 19/19; `validate-plugin.sh` 8 checks / 0 warnings; `validate-no-claude-home-leak` clean; `vocabulary-audit`, `step-prompt-vocabulary-audit` and `contract-validate` all 0 violations.
+
 ## v0.6.0 - 2026-08-17 - command surface: impl, review, watch-pr, and argument plumbing
 
 **Provenance**: hand-cut into oj-claude, **with sources in lockstep** - `juntospec/D56-commands-automation.md` and `juntogen/claude/steps/step-06-commands.md` + `step-07-helper-script.md` carry the same change, so a regen reproduces it.
