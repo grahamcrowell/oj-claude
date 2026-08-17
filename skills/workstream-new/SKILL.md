@@ -1,5 +1,6 @@
 ---
 description: Scaffold a parallel-workstream directory (git worktree + linked .claude/ state) for running an isolated /oj:cycle thread against a shared workspace
+argument-hint: "<wsid> <repo> [branch] [--workspace PATH]"
 disable-model-invocation: true
 ---
 
