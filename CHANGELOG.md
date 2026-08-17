@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - spawn cost controls
+## v0.5.1 - 2026-08-17 - spawn cost controls
 
 **Provenance**: hand-cut into oj-claude. **Source is NOT in lockstep** - this change reverses the IMMUTABLE `D32-execution-models.md` section 6 decision (one model for all personas, cognitive demand expressed only as effort) and the corresponding juntospec/juntogen sources have not been updated, because they were not reachable from where this was cut. A regen would revert it. Reconcile upstream before the next release.
 
